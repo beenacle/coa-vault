@@ -55,6 +55,32 @@ Activate the plugin — tables are created on activation and kept current on upd
 - **Labs:** free-text with autocomplete; custom labs get a slug so they're filterable; standard set in `Support/Vocab.php`.
 - **Media:** local uploads.
 
+## Updates
+COA Vault updates itself from this repo's **GitHub Releases** — it is not on the
+WordPress.org directory. Each site checks `releases/latest` (cached 6h to respect
+GitHub's rate limit) and offers new versions from **Dashboard → Updates**, just like
+any other plugin. No tokens or secrets are needed for a public repo. The logic lives
+in `src/Update/GitHubUpdater.php`; the `Update URI` header keeps any same-slug
+WordPress.org plugin from hijacking the update.
+
+## Releasing
+Cutting a release is one tagged commit — CI does the rest:
+
+1. Bump the version in **two** places: the `Version:` header and `COA_VAULT_VERSION`
+   in `coa-vault.php` (keep them equal; the constant is the runtime source of truth).
+2. Commit, then tag and push:
+   ```bash
+   git commit -am "Release vX.Y.Z"
+   git tag vX.Y.Z && git push origin main --tags
+   ```
+3. `.github/workflows/release.yml` builds `coa-vault.zip` (dev files stripped via
+   `.distignore`, the tag version stamped into the header as a safety net) and
+   publishes it as the release asset.
+
+Within ~6h (or immediately via **Dashboard → Updates → Check again**) every site sees
+the new version and can update in one click. Use `vX.Y.Z-rc1`-style pre-release tags
+for testing — the updater only follows the *latest* full (non-prerelease) release.
+
 ## Migration (separate companion)
 Importing legacy ACF / `lab-result` CPT / native `coa` data is handled by a separate
 **COA Vault — Migration** companion plugin. Install it only where a one-time import is

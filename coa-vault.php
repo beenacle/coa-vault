@@ -12,6 +12,8 @@
  * Text Domain:          coa-vault
  * License:              GPL-2.0-or-later
  * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI:           https://github.com/beenacle/coa-vault
+ * Tested up to:         6.8
  *
  * @package CoaVault
  */

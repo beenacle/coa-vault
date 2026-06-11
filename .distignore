@@ -1,0 +1,11 @@
+# Files excluded from the distributed plugin zip built by .github/workflows/release.yml.
+.git
+.github
+.gitignore
+.distignore
+.editorconfig
+build
+tools
+tests
+*.zip
+.DS_Store

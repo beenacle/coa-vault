@@ -43,6 +43,17 @@ final class Plugin
         // Keep the schema current on plugin updates without requiring re-activation.
         Installer::maybe_upgrade();
 
+        // Self-updates from GitHub Releases. Update checks only run in the admin, via
+        // cron, or under WP-CLI, so there's no need to wire the hooks on the frontend.
+        if (is_admin() || (defined('DOING_CRON') && DOING_CRON) || (defined('WP_CLI') && WP_CLI)) {
+            (new \CoaVault\Update\GitHubUpdater(
+                COA_VAULT_FILE,
+                COA_VAULT_VERSION,
+                'beenacle',
+                'coa-vault'
+            ))->register();
+        }
+
         // COA is WooCommerce product data — bail if WooCommerce isn't active.
         if (!class_exists('WooCommerce')) {
             return;

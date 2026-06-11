@@ -1,0 +1,44 @@
+name: Release
+
+# Tagging vX.Y.Z builds the distributable plugin zip and publishes (or updates) the
+# matching GitHub Release with it attached. The GitHubUpdater in the plugin then
+# offers that release to every site from Dashboard → Updates.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build coa-vault.zip
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          DEST="$RUNNER_TEMP/coa-vault"
+
+          mkdir -p "$DEST"
+          rsync -a --exclude-from=.distignore ./ "$DEST/"
+
+          # Belt-and-suspenders: stamp the tag version into the shipped header and
+          # constant so the installed plugin can never report an older version than
+          # the release it came from (which would loop "update available" forever).
+          sed -i "s/^ \* Version:.*/ * Version:              ${VERSION}/" "$DEST/coa-vault.php"
+          sed -i "s/define('COA_VAULT_VERSION', '[^']*')/define('COA_VAULT_VERSION', '${VERSION}')/" "$DEST/coa-vault.php"
+
+          ( cd "$RUNNER_TEMP" && zip -rq "$GITHUB_WORKSPACE/coa-vault.zip" coa-vault )
+          echo "Built coa-vault.zip for v${VERSION}"
+
+      - name: Publish release with asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: coa-vault.zip
+          generate_release_notes: true
+          make_latest: true
