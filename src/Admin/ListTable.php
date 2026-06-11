@@ -45,19 +45,17 @@ final class ListTable extends \WP_List_Table
         $page     = $this->get_pagenum();
         $lab      = isset($_REQUEST['lab']) ? sanitize_text_field((string) wp_unslash($_REQUEST['lab'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
-        $items = $this->records->query([
-            'lab'      => $lab,
-            'page'     => $page,
-            'per_page' => $per_page,
-        ]);
+        $filters = ['lab' => $lab];
+        $total   = $this->records->count($filters);
+        $items   = $this->records->query($filters + ['page' => $page, 'per_page' => $per_page]);
 
         $this->_column_headers = [$this->get_columns(), [], []];
         $this->items           = $items;
 
-        // Lightweight pagination (count via a follow-on page probe is overkill here).
         $this->set_pagination_args([
-            'total_items' => count($items) < $per_page ? ($page - 1) * $per_page + count($items) : $page * $per_page + 1,
+            'total_items' => $total,
             'per_page'    => $per_page,
+            'total_pages' => (int) ceil(max(1, $total) / $per_page),
         ]);
     }
 

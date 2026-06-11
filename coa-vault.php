@@ -3,7 +3,7 @@
  * Plugin Name:          COA Vault
  * Plugin URI:           https://beenacle.com/coa-vault
  * Description:          Unified Certificate of Analysis (COA) management for WooCommerce — custom-table storage, simple + variable product support, multi-COA per size/variation, and auto-migration from legacy ACF / native COA schemas.
- * Version:              0.1.2
+ * Version:              0.1.3
  * Requires PHP:         8.1
  * Requires at least:    6.4
  * WC requires at least: 8.0
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('COA_VAULT_VERSION', '0.1.2');
+define('COA_VAULT_VERSION', '0.1.3');
 define('COA_VAULT_DB_VERSION', '2');
 define('COA_VAULT_FILE', __FILE__);
 define('COA_VAULT_PATH', plugin_dir_path(__FILE__));

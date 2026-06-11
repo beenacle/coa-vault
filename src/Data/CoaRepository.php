@@ -196,7 +196,46 @@ final class CoaRepository
     public function query(array $f): array
     {
         global $wpdb;
-        $t      = Schema::records_table();
+        $t                = Schema::records_table();
+        [$where, $params] = $this->build_where($f);
+
+        $per      = max(1, min(200, (int) ($f['per_page'] ?? 50)));
+        $page     = max(1, (int) ($f['page'] ?? 1));
+        $params[] = $per;
+        $params[] = ($page - 1) * $per;
+
+        $sql = "SELECT * FROM {$t} WHERE " . implode(' AND ', $where)
+             . ' ORDER BY analysis_date DESC, id DESC LIMIT %d OFFSET %d';
+
+        return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, ...$params)));
+    }
+
+    /**
+     * Total rows matching the same filters as query() (no LIMIT) — drives correct
+     * pagination so the total can never diverge from the paginated result.
+     *
+     * @param array<string,mixed> $f
+     */
+    public function count(array $f): int
+    {
+        global $wpdb;
+        $t                = Schema::records_table();
+        [$where, $params] = $this->build_where($f);
+        $sql              = "SELECT COUNT(*) FROM {$t} WHERE " . implode(' AND ', $where);
+
+        return (int) ($params === []
+            ? $wpdb->get_var($sql)
+            : $wpdb->get_var($wpdb->prepare($sql, ...$params)));
+    }
+
+    /**
+     * Shared WHERE clause + bind params for the catalog query and its count.
+     *
+     * @param array<string,mixed> $f
+     * @return array{0:string[],1:array<int,mixed>}
+     */
+    private function build_where(array $f): array
+    {
         $where  = ['source_present = 1'];
         $params = [];
 
@@ -217,15 +256,7 @@ final class CoaRepository
             $params[] = (int) $f['product_id'];
         }
 
-        $per    = max(1, min(200, (int) ($f['per_page'] ?? 50)));
-        $page   = max(1, (int) ($f['page'] ?? 1));
-        $params[] = $per;
-        $params[] = ($page - 1) * $per;
-
-        $sql = "SELECT * FROM {$t} WHERE " . implode(' AND ', $where)
-             . ' ORDER BY analysis_date DESC, id DESC LIMIT %d OFFSET %d';
-
-        return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, ...$params)));
+        return [$where, $params];
     }
 
     // ──────────────────────────────────────────────────────────────────────
