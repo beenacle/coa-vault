@@ -36,7 +36,6 @@ final class ListTable extends \WP_List_Table
             'date'    => __('Date', 'coa-vault'),
             'purity'  => __('Purity', 'coa-vault'),
             'report'  => __('Report', 'coa-vault'),
-            'site'    => __('Source', 'coa-vault'),
         ];
     }
 
@@ -82,11 +81,14 @@ final class ListTable extends \WP_List_Table
             case 'purity':
                 return $item['purity_pct'] !== null ? esc_html((string) $item['purity_pct']) . '%' : '—';
             case 'report':
-                return $item['report']['url'] !== ''
-                    ? '<a href="' . esc_url($item['report']['url']) . '" target="_blank" rel="noopener">' . esc_html__('View', 'coa-vault') . '</a>'
-                    : '—';
-            case 'site':
-                return esc_html((string) $item['source']['site']);
+                $links = [];
+                if ($item['report']['url'] !== '') {
+                    $links[] = '<a href="' . esc_url($item['report']['url']) . '" target="_blank" rel="noopener">' . esc_html__('View', 'coa-vault') . '</a>';
+                }
+                if (!empty($item['report']['verify_url'])) {
+                    $links[] = '<a href="' . esc_url((string) $item['report']['verify_url']) . '" target="_blank" rel="noopener">' . esc_html__('Verify', 'coa-vault') . '</a>';
+                }
+                return $links !== [] ? implode(' · ', $links) : '—';
             default:
                 return '';
         }

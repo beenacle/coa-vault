@@ -14,8 +14,9 @@ final class Vocab
     public const LABS = [
         'janoshik'    => 'Janoshik',
         'chromate'    => 'Chromate',
-        'mz_biolabs'  => 'MZ Biolabs',
-        'trustpointe' => 'TrustPointe Analytics',
+        'trustpointe' => 'TrustPointe',
+        'accumark'    => 'AccuMark Labs',
+        'bt_labs'     => 'BT Lab Testing',
     ];
 
     /**
@@ -25,14 +26,17 @@ final class Vocab
     public const LAB_ALIASES = [
         'janoshik'              => 'janoshik',
         'chromate'              => 'chromate',
-        'mz biolabs'            => 'mz_biolabs',
-        'mzbiolabs'             => 'mz_biolabs',
-        'mz bio'                => 'mz_biolabs',
-        'mz biolab'             => 'mz_biolabs',
+        'trustpointe analytics llc' => 'trustpointe',
         'trustpointe analytics' => 'trustpointe',
         'trustpointe'           => 'trustpointe',
         'trustpoint analytics'  => 'trustpointe',
         'trustpoint'            => 'trustpointe',
+        'accumark labs'         => 'accumark',
+        'accumark'              => 'accumark',
+        'bt lab testing'        => 'bt_labs',
+        'btlabtesting'          => 'bt_labs',
+        'btlabs'                => 'bt_labs',
+        'bt labs'               => 'bt_labs',
     ];
 
     /**
@@ -44,6 +48,8 @@ final class Vocab
         'janoshik.com'        => 'janoshik',
         'chromate.org'        => 'chromate',
         'trustpointelims.com' => 'trustpointe',
+        'accumarklabs.com'    => 'accumark',
+        'btlabtesting.com'    => 'bt_labs',
     ];
 
     /** Canonical measurement name slug => display label. */

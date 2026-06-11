@@ -32,10 +32,14 @@ final class Report
         if ($attachmentId) {
             if (get_post($attachmentId) instanceof \WP_Post) {
                 $resolved = wp_get_attachment_url($attachmentId);
+                // Image-vs-file is decided by the attachment's REAL mime type (a COA can
+                // be a JPG/PNG or a PDF), not the source field's hint — legacy ACF
+                // "image" and "file" fields are used interchangeably across sites.
+                $isImage = str_starts_with((string) get_post_mime_type($attachmentId), 'image/');
                 return [
                     'file_id' => $attachmentId,
                     'url'     => is_string($resolved) ? $resolved : $url,
-                    'kind'    => $preferKind === self::KIND_FILE ? self::KIND_FILE : self::KIND_IMAGE,
+                    'kind'    => ($preferKind === self::KIND_FILE || !$isImage) ? self::KIND_FILE : self::KIND_IMAGE,
                     'dead'    => false,
                 ];
             }
