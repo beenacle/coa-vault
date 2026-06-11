@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "coa-vault/panel",
+  "title": "COA Panel",
+  "category": "woocommerce",
+  "icon": "clipboard",
+  "description": "Displays Certificate of Analysis batches for the current product, with per-variation swapping.",
+  "keywords": ["coa", "certificate", "lab", "analysis", "woocommerce"],
+  "textdomain": "coa-vault",
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "attributes": {
+    "productId": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "viewScript": "coa-vault-frontend"
+}

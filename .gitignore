@@ -1,0 +1,20 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Dependencies (committed builds, if any, are added explicitly)
+/vendor/
+/node_modules/
+
+# Local dev/test fixtures — not part of the distributable plugin
+/tools/
+
+# Logs & build artifacts
+*.log
+/build/
+/dist/
+*.zip

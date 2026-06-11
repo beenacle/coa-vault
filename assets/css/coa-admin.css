@@ -1,0 +1,12 @@
+.coa-admin-table { margin-bottom: 1em; }
+.coa-admin-table td, .coa-admin-table th { vertical-align: middle; }
+.coa-admin-latest { background: #2e7d32; color: #fff; border-radius: 3px; font-size: .7em; padding: .05em .35em; margin-left: .3em; vertical-align: middle; }
+.coa-admin-empty { color: #777; font-style: italic; }
+.coa-admin-form { background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; padding: .5em 1em 1em; margin-top: 1em; }
+.coa-admin-form-title { margin: .5em 0; }
+.coa-admin-form label { display: inline-flex; flex-direction: column; font-size: .85em; margin: 0 1em .5em 0; gap: .2em; }
+.coa-admin-form input, .coa-admin-form select { min-width: 8em; }
+.coa-char-row { display: flex; gap: .5em; align-items: center; margin: .25em 0; }
+.coa-f-report-row { display: flex; gap: 1em; align-items: center; flex-wrap: wrap; }
+.coa-f-filename { font-size: .85em; color: #555; }
+.coa-cli { background: #1e1e1e; color: #e6e6e6; padding: 1em; border-radius: 6px; overflow:auto; }

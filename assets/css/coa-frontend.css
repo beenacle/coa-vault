@@ -1,0 +1,15 @@
+.coa-vault-wrap { margin: 1.5em 0; }
+.coa-vault-wrap.is-loading { opacity: .5; transition: opacity .15s ease; }
+.coa-vault-list { list-style: none; margin: 0; padding: 0; }
+.coa-vault-item { border: 1px solid #e2e2e2; border-radius: 6px; margin: 0 0 .5em; padding: .25em .75em; }
+.coa-vault-item.is-latest { border-color: #2e7d32; }
+.coa-vault-item summary { cursor: pointer; display: flex; gap: .5em; align-items: baseline; flex-wrap: wrap; }
+.coa-vault-meta { color: #555; font-size: .9em; }
+.coa-vault-note { background: #eef6ee; color: #2e7d32; border-radius: 3px; font-size: .75em; padding: .1em .4em; }
+.coa-vault-chars { margin: .4em 0; padding-left: 1.2em; font-size: .9em; color: #444; }
+.coa-vault-report { display: inline-block; margin: .4em 0; }
+.coa-vault-report img { max-width: 320px; height: auto; border: 1px solid #eee; border-radius: 4px; }
+.coa-vault-report--link { text-decoration: underline; }
+.coa-vault-verify { display: inline-block; margin: .4em 0 .4em 1em; font-size: .9em; font-weight: 600; color: #2e7d32; text-decoration: none; }
+.coa-vault-verify:hover { text-decoration: underline; }
+.coa-vault-empty { color: #777; font-style: italic; }
