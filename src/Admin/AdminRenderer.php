@@ -86,7 +86,7 @@ final class AdminRenderer
         }
         $labs = '';
         foreach ($lab_names as $label) {
-            $labs .= sprintf('<option value="%s">', esc_attr($label));
+            $labs .= sprintf('<option value="%s"></option>', esc_attr($label));
         }
 
         // "Applies to" options, built from the product's REAL variations so admins

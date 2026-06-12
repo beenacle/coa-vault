@@ -259,6 +259,51 @@ final class CoaRepository
         return [$where, $params];
     }
 
+    /**
+     * Count of LIVE COA records per product, for the given product ids — one query,
+     * so the Products-list coverage column has no N+1.
+     *
+     * @param int[] $product_ids
+     * @return array<int,int> product_id => record count
+     */
+    public function coverage_counts(array $product_ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $product_ids))));
+        if ($ids === []) {
+            return [];
+        }
+        global $wpdb;
+        $t            = Schema::records_table();
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $rows         = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT product_id, COUNT(*) AS n FROM {$t}
+                 WHERE source_present = 1 AND product_id IN ({$placeholders})
+                 GROUP BY product_id",
+                ...$ids
+            )
+        );
+
+        $out = [];
+        foreach ((array) $rows as $r) {
+            $out[(int) $r->product_id] = (int) $r->n;
+        }
+        return $out;
+    }
+
+    /** Number of PUBLISHED products that have no live COA record (coverage gap). */
+    public function count_products_missing_coa(): int
+    {
+        global $wpdb;
+        $t = Schema::records_table();
+        // No user input — table names are from Schema, the rest is literal.
+        return (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->posts} p
+             WHERE p.post_type = 'product' AND p.post_status = 'publish'
+             AND NOT EXISTS (SELECT 1 FROM {$t} r WHERE r.product_id = p.ID AND r.source_present = 1)"
+        );
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Admin writes (manual records — not migration). Keyed by id, not source_hash.
     // ──────────────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ use CoaVault\Admin\AdminMenu;
 use CoaVault\Admin\AdminRenderer;
 use CoaVault\Admin\Assets as AdminAssets;
 use CoaVault\Admin\BatchController;
+use CoaVault\Admin\ProductCoverage;
 use CoaVault\Admin\ProductPanel;
 use CoaVault\Data\CoaRepository;
 use CoaVault\Data\Installer;
@@ -74,6 +75,15 @@ final class Plugin
 
     private function register_frontend(): void
     {
+        // Let a site opt out of the bundled on-storefront renderers and supply its
+        // own COA markup (e.g. a page-builder template fed from the same records).
+        // Disable via the `coa_vault_frontend` option = '0' or the same-named filter.
+        // REST stays available either way so a custom display can still resolve COAs.
+        $enabled = (bool) apply_filters('coa_vault_frontend', get_option('coa_vault_frontend', '1') !== '0');
+        if (!$enabled) {
+            return;
+        }
+
         $renderer = $this->renderer();
         (new VariationInjector())->register();
         (new Shortcode($renderer))->register();
@@ -88,6 +98,7 @@ final class Plugin
         (new ProductPanel($admin_renderer))->register();
         (new BatchController($this->records(), $admin_renderer))->register();
         (new AdminMenu($this->records()))->register();
+        (new ProductCoverage($this->records()))->register();
         (new AdminAssets())->register();
     }
 

@@ -91,8 +91,9 @@ final class CoaController
         if ($columns['product_id'] <= 0) {
             return new \WP_REST_Response(['message' => 'product_id is required'], 400);
         }
-        $id = $this->records->save_from_admin(null, $columns, $chars);
-        return new \WP_REST_Response($this->records->find($id), 201);
+        $id     = $this->records->save_from_admin(null, $columns, $chars);
+        $record = $this->records->find($id);
+        return new \WP_REST_Response($record !== null ? RecordSchema::public_shape($record) : null, 201);
     }
 
     public function update(\WP_REST_Request $request): \WP_REST_Response
@@ -104,7 +105,8 @@ final class CoaController
         [$columns, $chars] = RecordInput::to_columns((array) $request->get_json_params());
         unset($columns['product_id']); // immutable on update
         $this->records->save_from_admin($id, $columns, $chars);
-        return new \WP_REST_Response($this->records->find($id), 200);
+        $record = $this->records->find($id);
+        return new \WP_REST_Response($record !== null ? RecordSchema::public_shape($record) : null, 200);
     }
 
     public function destroy(\WP_REST_Request $request): \WP_REST_Response

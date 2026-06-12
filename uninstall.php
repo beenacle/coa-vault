@@ -34,4 +34,5 @@ foreach ($tables as $table) {
 
 delete_option('coa_vault_db_version');
 delete_option('coa_vault_drop_data_on_uninstall');
-delete_option('coa_vault_render_source');
+delete_option('coa_vault_frontend');
+delete_option('coa_vault_autoinject');
