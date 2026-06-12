@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,9 +25,10 @@ support for **per-size / per-variation** certificates.
   shopper picks a size.
 * Each COA holds a report file/image, an optional lab verification link, batch,
   analysis date, lab, purity/mass, and free-form characteristics.
-* Displays COAs via a block, the `[coa]` / `[coa_vault]` shortcode, or automatic
-  placement on the product page — or hand all of that off to your own theme/page
-  builder while still reading from the same records.
+* Displays COAs via a block, the `[coa_vault]` shortcode (including
+  `[coa_vault all="true"]` for a catalog-wide archive), or automatic placement on the
+  product page — or hand all of that off to your own theme/page builder while still
+  reading from the same records.
 * Exposes a REST API under `coa-vault/v1` for headless / custom displays.
 * Admin: a per-product COA editor and a catalog-wide COA list, plus a COA-coverage
   column and a "No COA" filter on the Products screen so you can spot gaps at a glance.
@@ -78,6 +79,13 @@ legacy schemas. The core plugin has no dependency on it.
 
 == Changelog ==
 
+= 0.1.5 =
+* Change: one display shortcode — `[coa_vault]` (the `[coa]` and `[cf_coa]` aliases were removed).
+* New: `[coa_vault all="true"]` renders a catalog archive of every published product's COAs.
+* Native rendering: images and PDFs both render via `wp_get_attachment_image()` (PDFs show their
+  generated first-page preview); semantic, theme-styled markup with structure-only CSS.
+* Frontend assets now load wherever `[coa_vault]` is used, not only on product pages.
+
 = 0.1.4 =
 * New: `coa_vault_frontend` opt-out switch — disable all bundled on-storefront COA
   renderers and supply your own markup. The REST API stays available either way.
@@ -97,8 +105,7 @@ legacy schemas. The core plugin has no dependency on it.
 = 0.1.2 =
 * Labs: added AccuMark Labs and BT Lab Testing; dropped MZ Biolabs; shortened
   "TrustPointe Analytics" to "TrustPointe".
-* Reports: image-vs-file is decided by the attachment's real MIME type, so a PDF stored
-  in an image field renders as a downloadable file instead of a broken image.
+* Reports: image-vs-file is decided by the attachment's real MIME type.
 * Admin: the COA list shows the lab verify link; removed the low-value Source column.
 
 = 0.1.1 =
@@ -106,6 +113,10 @@ legacy schemas. The core plugin has no dependency on it.
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.1.5 =
+The display shortcode is now just `[coa_vault]` — update any `[coa]` or `[cf_coa]` references.
+Certificates (including PDFs) now render as native, theme-styled content.
 
 = 0.1.4 =
 Security: REST write responses no longer expose internal migration metadata. Adds a

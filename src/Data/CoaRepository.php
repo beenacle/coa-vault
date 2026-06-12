@@ -304,6 +304,32 @@ final class CoaRepository
         );
     }
 
+    /**
+     * All LIVE COA records for PUBLISHED products, grouped by product and ordered
+     * by product title — powers the catalog/archive shortcode. Two queries total
+     * (records + their characteristics via hydrate_many); no per-product N+1.
+     *
+     * @return array<int,array<int,array<string,mixed>>> product_id => shaped records
+     */
+    public function all_for_published_products(): array
+    {
+        global $wpdb;
+        $t    = Schema::records_table();
+        // No user input — table names are from Schema, the rest is literal.
+        $rows = $wpdb->get_results(
+            "SELECT r.* FROM {$t} r
+             JOIN {$wpdb->posts} p ON p.ID = r.product_id
+             WHERE r.source_present = 1 AND p.post_type = 'product' AND p.post_status = 'publish'
+             ORDER BY p.post_title ASC, r.size_token ASC, r.analysis_date DESC, r.id DESC"
+        );
+
+        $grouped = [];
+        foreach ($this->hydrate_many($rows) as $rec) {
+            $grouped[(int) $rec['product_id']][] = $rec;
+        }
+        return $grouped;
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Admin writes (manual records — not migration). Keyed by id, not source_hash.
     // ──────────────────────────────────────────────────────────────────────

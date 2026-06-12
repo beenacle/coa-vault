@@ -49,77 +49,135 @@ final class RenderService
     }
 
     /**
+     * Catalog archive — every published product's COAs grouped under a linked
+     * product heading. Powers `[coa_vault all="true"]`.
+     */
+    public function render_all_products(): string
+    {
+        $grouped = $this->records->all_for_published_products();
+        if ($grouped === []) {
+            return '<p class="coa-vault-empty">' . esc_html__('No certificates of analysis available.', 'coa-vault') . '</p>';
+        }
+
+        $out = '<div class="coa-vault-archive">';
+        foreach ($grouped as $product_id => $records) {
+            $title   = get_the_title($product_id);
+            $link    = get_permalink($product_id);
+            $heading = $link
+                ? '<a href="' . esc_url($link) . '">' . esc_html($title) . '</a>'
+                : esc_html($title);
+            $out .= sprintf(
+                '<section class="coa-vault-archive__item"><h3 class="coa-vault-archive__title">%s</h3>%s</section>',
+                $heading,
+                $this->render_records($records)
+            );
+        }
+        $out .= '</div>';
+        return $out;
+    }
+
+    /**
      * @param array<string,mixed> $r
      */
     private function render_one(array $r): string
     {
-        $latest    = !empty($r['is_latest']);
-        $title     = $r['batch'] !== '' ? $r['batch'] : __('Batch', 'coa-vault');
-        $meta      = [];
+        $latest = !empty($r['is_latest']);
+        $title  = $r['batch'] !== '' ? $r['batch'] : __('Batch', 'coa-vault');
 
+        // Disclosure label: batch, then a quiet lab · date line + status tags.
+        $sub = [];
         if (!empty($r['lab']['label'])) {
-            $meta[] = esc_html($r['lab']['label']);
+            $sub[] = esc_html($r['lab']['label']);
         }
         if (!empty($r['analysis_date'])) {
-            $meta[] = esc_html((string) $r['analysis_date']);
-        }
-        if ($r['purity_pct'] !== null) {
-            $meta[] = esc_html(sprintf('%s%% purity', rtrim(rtrim((string) $r['purity_pct'], '0'), '.')));
-        }
-        if ($r['mass_mg'] !== null) {
-            $meta[] = esc_html(sprintf('%smg', rtrim(rtrim((string) $r['mass_mg'], '0'), '.')));
+            $sub[] = esc_html((string) $r['analysis_date']);
         }
 
-        $extra_chars = [];
+        $summary = '<summary><span class="coa-vault-batch">' . esc_html($title) . '</span>';
+        if ($sub !== []) {
+            $summary .= ' <span class="coa-vault-sub">' . implode(' &middot; ', $sub) . '</span>';
+        }
+        if (!empty($r['applies_all_sizes'])) {
+            $summary .= ' <span class="coa-vault-tag">' . esc_html__('All sizes', 'coa-vault') . '</span>';
+        }
+        if ($latest) {
+            $summary .= ' <span class="coa-vault-tag">' . esc_html__('Latest', 'coa-vault') . '</span>';
+        }
+        $summary .= '</summary>';
+
+        // Results as a native description list (key/value) — themes style <dl> already.
+        $facts = [];
+        if ($r['purity_pct'] !== null) {
+            $facts[] = [__('Purity', 'coa-vault'), rtrim(rtrim((string) $r['purity_pct'], '0'), '.') . '%'];
+        }
+        if ($r['mass_mg'] !== null) {
+            $facts[] = [__('Mass', 'coa-vault'), rtrim(rtrim((string) $r['mass_mg'], '0'), '.') . ' mg'];
+        }
         foreach ((array) $r['characteristics'] as $c) {
             if (in_array($c['name'], ['purity', 'mass'], true)) {
                 continue; // already shown via the hot columns
             }
-            $val = is_float($c['value']) ? rtrim(rtrim((string) $c['value'], '0'), '.') : (string) $c['value'];
-            $extra_chars[] = esc_html(trim(($c['label'] ?: $c['name']) . ' ' . $val . ' ' . $c['unit']));
+            $val     = is_float($c['value']) ? rtrim(rtrim((string) $c['value'], '0'), '.') : (string) $c['value'];
+            $facts[] = [($c['label'] ?: $c['name']), trim($val . ' ' . $c['unit'])];
+        }
+
+        $dl = '';
+        if ($facts !== []) {
+            $dl = '<dl class="coa-vault-facts">';
+            foreach ($facts as [$key, $value]) {
+                $dl .= '<dt>' . esc_html($key) . '</dt><dd>' . esc_html($value) . '</dd>';
+            }
+            $dl .= '</dl>';
         }
 
         $report = $this->render_report($r['report'], (string) ($r['lab']['label'] ?? ''));
-        $note   = !empty($r['applies_all_sizes'])
-            ? '<span class="coa-vault-note">' . esc_html__('Applies to all sizes', 'coa-vault') . '</span>'
-            : '';
 
-        $classes = 'coa-vault-item' . ($latest ? ' is-latest' : '');
-        $open    = $latest ? ' open' : '';
-
-        return sprintf(
-            '<li class="%s"><details%s><summary><strong>%s</strong> %s %s</summary>%s%s%s</details></li>',
-            esc_attr($classes),
-            $open,
-            esc_html($title),
-            $note,
-            $meta !== [] ? '<span class="coa-vault-meta">' . implode(' · ', $meta) . '</span>' : '',
-            $extra_chars !== [] ? '<ul class="coa-vault-chars"><li>' . implode('</li><li>', $extra_chars) . '</li></ul>' : '',
-            $report,
-            ''
-        );
+        return '<li class="coa-vault-item"><details' . ($latest ? ' open' : '') . '>'
+            . $summary . $dl . $report
+            . '</details></li>';
     }
 
     /**
-     * Render the certificate file (image/link) AND, when present, the original
-     * lab verification link — the two are distinct artifacts and both are shown.
+     * Render the certificate AND, when present, the original lab verification link.
+     *
+     * A local attachment is rendered the way WordPress itself does it —
+     * wp_get_attachment_image() returns an <img> for images AND for PDFs (their
+     * auto-generated first-page preview, with WP's own media icon as the fallback),
+     * exactly like the Media Library / ACF. No PDF special-casing.
      *
      * @param array<string,mixed> $report
      */
     private function render_report(array $report, string $lab_label = ''): string
     {
-        $url    = (string) ($report['url'] ?? '');
-        $kind   = (string) ($report['kind'] ?? 'none');
-        $verify = (string) ($report['verify_url'] ?? '');
+        $file_id = isset($report['file_id']) ? (int) $report['file_id'] : 0;
+        $url     = (string) ($report['url'] ?? '');
+        $verify  = (string) ($report['verify_url'] ?? '');
+        $alt     = esc_attr__('Certificate of Analysis', 'coa-vault');
 
         $parts = [];
 
-        if ($url !== '' && $kind !== 'none') {
-            if ($kind === 'image') {
+        if ($file_id > 0) {
+            // Native: image OR PDF preview, with srcset, handled by WordPress.
+            $img  = wp_get_attachment_image($file_id, 'large', true, [
+                'class'   => 'coa-vault-report-img',
+                'alt'     => $alt,
+                'loading' => 'lazy',
+            ]);
+            $href = wp_get_attachment_url($file_id) ?: $url;
+            if ($img !== '' && $href !== '') {
                 $parts[] = sprintf(
-                    '<a class="coa-vault-report" href="%1$s" target="_blank" rel="noopener"><img src="%1$s" alt="%2$s" loading="lazy"></a>',
+                    '<figure class="coa-vault-report"><a href="%s" target="_blank" rel="noopener">%s</a></figure>',
+                    esc_url($href),
+                    $img
+                );
+            }
+        } elseif ($url !== '') {
+            // External URL with no local attachment: inline images, link anything else.
+            if (preg_match('#\.(png|jpe?g|gif|webp|avif|svg)(\?|\#|$)#i', $url)) {
+                $parts[] = sprintf(
+                    '<figure class="coa-vault-report"><a href="%1$s" target="_blank" rel="noopener"><img src="%1$s" alt="%2$s" loading="lazy"></a></figure>',
                     esc_url($url),
-                    esc_attr__('Certificate of Analysis', 'coa-vault')
+                    $alt
                 );
             } else {
                 $parts[] = sprintf(

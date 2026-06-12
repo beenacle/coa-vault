@@ -6,7 +6,7 @@ Plugin-owned custom tables, simple **and** variable product support, multi-COA p
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.1.4.** Core is self-contained and distribution-oriented. Legacy data
+> **Status: v0.1.5.** Core is self-contained and distribution-oriented. Legacy data
 > import lives in a separate, optional **COA Vault — Migration** companion plugin, so
 > the shippable core carries no site-specific code. See [CHANGELOG.md](CHANGELOG.md).
 
@@ -34,7 +34,7 @@ assets/ · blocks/             frontend + admin JS/CSS, coa-vault/panel block
 
 ## Display
 - **Block:** `coa-vault/panel`
-- **Shortcode:** `[coa]` (also `[coa_vault]` and the legacy `[cf_coa]`)
+- **Shortcode:** `[coa_vault]` (current product), `[coa_vault product_id="N"]`, or `[coa_vault all="true"]` for a catalog archive of every published product's COAs.
 - **Auto-inject:** opt-out via `coa_vault_autoinject` option/filter; placement on `woocommerce_single_product_summary`.
 - Selecting a variation lazy-fetches that size's COAs via REST (no page bloat).
 
@@ -46,7 +46,7 @@ assets/ · blocks/             frontend + admin JS/CSS, coa-vault/panel block
 ## Usage
 Activate the plugin — tables are created on activation and kept current on update
 (`dbDelta`, versioned via `coa_vault_db_version`). Add COAs from the product editor's
-**Certificates of Analysis** box, or place `[coa]` / the `coa-vault/panel` block.
+**Certificates of Analysis** box, or place `[coa_vault]` / the `coa-vault/panel` block.
 
 ## Decisions baked in
 - **Storage:** custom tables (not ACF/CPT/meta).

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace CoaVault\Frontend;
 
 /**
- * `[coa]` shortcode (short & friendly) for classic themes / page builders, with a
- * branded `[coa_vault]` alias and a `[cf_coa]` back-compat alias so triumphant sites
- * keep working with no template edits.
+ * The single `[coa_vault]` shortcode for classic themes / page builders.
+ *   [coa_vault]                — COAs for the current product
+ *   [coa_vault product_id="N"] — COAs for a specific product
+ *   [coa_vault all="true"]     — every published product's COAs (catalog archive)
  */
 final class Shortcode
 {
@@ -17,9 +18,7 @@ final class Shortcode
 
     public function register(): void
     {
-        add_shortcode('coa', [$this, 'render']);
-        add_shortcode('coa_vault', [$this, 'render']); // branded alias
-        add_shortcode('cf_coa', [$this, 'render']);    // legacy alias (triumphant)
+        add_shortcode('coa_vault', [$this, 'render']);
     }
 
     /**
@@ -27,7 +26,12 @@ final class Shortcode
      */
     public function render($atts = []): string
     {
-        $atts       = shortcode_atts(['product_id' => 0], (array) $atts, 'coa');
+        $atts = shortcode_atts(['product_id' => 0, 'all' => ''], (array) $atts, 'coa_vault');
+
+        if (filter_var($atts['all'], FILTER_VALIDATE_BOOLEAN)) {
+            return $this->renderer->render_all_products();
+        }
+
         $product_id = (int) $atts['product_id'];
 
         if ($product_id === 0) {

@@ -17,7 +17,7 @@ final class Assets
 
     public function enqueue(): void
     {
-        if (!function_exists('is_product') || !is_product()) {
+        if (!$this->should_load()) {
             return;
         }
 
@@ -40,5 +40,15 @@ final class Assets
             'rest'  => esc_url_raw(rest_url('coa-vault/v1/')),
             'nonce' => wp_create_nonce('wp_rest'),
         ]);
+    }
+
+    /** Load on product pages, plus any singular post/page whose content uses [coa_vault]. */
+    private function should_load(): bool
+    {
+        if (function_exists('is_product') && is_product()) {
+            return true;
+        }
+        $post = get_post();
+        return $post instanceof \WP_Post && has_shortcode((string) $post->post_content, 'coa_vault');
     }
 }
