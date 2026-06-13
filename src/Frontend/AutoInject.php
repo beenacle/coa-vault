@@ -30,11 +30,19 @@ final class AutoInject
         if (!$product instanceof \WC_Product) {
             return;
         }
-        // Avoid double output if a block/shortcode already placed it in this request.
+        // Defer to manual placement: if the page already places a panel via the
+        // [coa_vault] shortcode or the coa-vault/panel block (e.g. in the product
+        // content/tabs, which render AFTER this summary hook), don't auto-inject too.
+        $post = get_post();
+        if ($post instanceof \WP_Post
+            && (has_shortcode((string) $post->post_content, 'coa_vault') || has_block('coa-vault/panel', $post))) {
+            return;
+        }
+        // Belt-and-suspenders for a panel rendered BEFORE this hook (e.g. the short
+        // description): render_for_product() fires `coa_vault_rendered`.
         if (did_action('coa_vault_rendered')) {
             return;
         }
-        do_action('coa_vault_rendered');
         echo $this->renderer->render_for_product($product->get_id()); // phpcs:ignore WordPress.Security.EscapeOutput
     }
 }

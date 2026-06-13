@@ -20,7 +20,12 @@ final class RenderService
     /** Initial server render for a product page (product-level COAs; JS swaps per variation). */
     public function render_for_product(int $product_id): string
     {
-        $records = $this->records->resolve($product_id, null, null);
+        // Mark that a COA panel was placed this request, so the opt-out auto-injector
+        // won't emit a duplicate when a shortcode/block already rendered one.
+        do_action('coa_vault_rendered');
+
+        // Editors may preview drafts; the public only sees published-product COAs.
+        $records = $this->records->resolve($product_id, null, null, false, !current_user_can('edit_products'));
         $inner   = $this->render_records($records);
         return sprintf(
             '<div class="coa-vault-wrap" data-product-id="%d">%s</div>',

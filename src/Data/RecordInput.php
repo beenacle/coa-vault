@@ -71,8 +71,12 @@ final class RecordInput
             $mass = (float) $in['mass_mg'];
         }
 
+        $product_id  = (int) ($in['product_id'] ?? 0);
+        $product     = $product_id > 0 && function_exists('wc_get_product') ? wc_get_product($product_id) : null;
+        $is_variable = $product instanceof \WC_Product && $product->is_type('variable');
+
         $columns = [
-            'product_id'        => (int) ($in['product_id'] ?? 0),
+            'product_id'        => $product_id,
             'variation_id'      => isset($in['variation_id']) && $in['variation_id'] !== '' ? (int) $in['variation_id'] : null,
             'size_token'        => $size,
             'batch'             => sanitize_text_field((string) ($in['batch'] ?? '')),
@@ -88,7 +92,9 @@ final class RecordInput
             'verify_url'        => esc_url_raw((string) ($in['verify_url'] ?? '')),
             'report_kind'       => $resolved['kind'],
             'sort_order'        => (int) ($in['sort_order'] ?? 0),
-            'applies_all_sizes' => !empty($in['applies_all_sizes']) ? 1 : 0,
+            // A whole-product COA on a VARIABLE product applies to every size — flag it so
+            // the "All sizes" label shows. Simple products (always size-less) keep "—".
+            'applies_all_sizes' => (($size === '' && $is_variable) || !empty($in['applies_all_sizes'])) ? 1 : 0,
         ];
 
         return [$columns, $chars];

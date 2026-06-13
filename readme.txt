@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,17 @@ legacy schemas. The core plugin has no dependency on it.
 
 == Changelog ==
 
+= 0.1.6 =
+* Security: public REST reads now return certificates only for published products; signed-in
+  editors still see drafts. Previously a draft product's COA data could be read anonymously.
+* Fix: size-token normalization no longer warns (and defaults to mg) for a number followed by
+  an unrecognized unit such as "30 caps".
+* Fix: auto-injected product-page panel no longer duplicates one already placed by the
+  `[coa_vault]` shortcode or the COA Panel block.
+* Fix: the COA Panel block loads its styles/script wherever it is used, not only on product pages.
+* Fix: choosing "Whole product (all sizes)" now shows the "All sizes" label consistently.
+* Hardening: admin characteristic fields are escaped on edit; REST create validates the product id.
+
 = 0.1.5 =
 * Change: one display shortcode — `[coa_vault]` (the `[coa]` and `[cf_coa]` aliases were removed).
 * New: `[coa_vault all="true"]` renders a catalog archive of every published product's COAs.
@@ -113,6 +124,10 @@ legacy schemas. The core plugin has no dependency on it.
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.1.6 =
+Security fix: public REST endpoints no longer expose certificates for unpublished products.
+Recommended for all sites that use the REST API or have draft products.
 
 = 0.1.5 =
 The display shortcode is now just `[coa_vault]` — update any `[coa]` or `[cf_coa]` references.

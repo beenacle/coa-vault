@@ -46,8 +46,8 @@ final class ListTable extends \WP_List_Table
         $lab      = isset($_REQUEST['lab']) ? sanitize_text_field((string) wp_unslash($_REQUEST['lab'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
         $filters = ['lab' => $lab];
-        $total   = $this->records->count($filters);
-        $items   = $this->records->query($filters + ['page' => $page, 'per_page' => $per_page]);
+        $total   = $this->records->count($filters, false);
+        $items   = $this->records->query($filters + ['page' => $page, 'per_page' => $per_page], false);
 
         $this->_column_headers = [$this->get_columns(), [], []];
         $this->items           = $items;

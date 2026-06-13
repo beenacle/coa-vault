@@ -6,13 +6,23 @@
     return $('#coa-admin');
   }
 
+  // Escape values before they go into HTML attributes — characteristic name/value/unit
+  // come from stored data and must not be able to break out of the value="" attribute.
+  function escAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   function charRow(name, value, unit) {
     return (
       '<p class="coa-char-row">' +
-      '<input type="text" class="coa-c-name" placeholder="' + coaAdmin.i18n.name + '" value="' + (name || '') + '">' +
-      '<input type="text" class="coa-c-value" placeholder="' + coaAdmin.i18n.value + '" value="' + (value || '') + '">' +
-      '<input type="text" class="coa-c-unit" placeholder="' + coaAdmin.i18n.unit + '" value="' + (unit || '') + '">' +
-      '<button type="button" class="button-link coa-remove-char">' + coaAdmin.i18n.remove + '</button>' +
+      '<input type="text" class="coa-c-name" placeholder="' + escAttr(coaAdmin.i18n.name) + '" value="' + escAttr(name) + '">' +
+      '<input type="text" class="coa-c-value" placeholder="' + escAttr(coaAdmin.i18n.value) + '" value="' + escAttr(value) + '">' +
+      '<input type="text" class="coa-c-unit" placeholder="' + escAttr(coaAdmin.i18n.unit) + '" value="' + escAttr(unit) + '">' +
+      '<button type="button" class="button-link coa-remove-char">' + escAttr(coaAdmin.i18n.remove) + '</button>' +
       '</p>'
     );
   }

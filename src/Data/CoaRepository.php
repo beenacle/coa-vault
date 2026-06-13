@@ -126,8 +126,13 @@ final class CoaRepository
     // ──────────────────────────────────────────────────────────────────────
 
     /** @return array<int,array<string,mixed>> size asc, then newest-first. */
-    public function find_by_product(int $product_id, bool $only_present = true): array
+    public function find_by_product(int $product_id, bool $only_present = true, bool $published_only = true): array
     {
+        // Reads default to published-only so the public REST endpoints can't leak
+        // COAs for draft/pending products; admin/editor callers pass false.
+        if ($published_only && get_post_status($product_id) !== 'publish') {
+            return [];
+        }
         global $wpdb;
         $t   = Schema::records_table();
         $sql = "SELECT * FROM {$t} WHERE product_id = %d";
@@ -143,8 +148,11 @@ final class CoaRepository
      *
      * @return array<int,array<string,mixed>>
      */
-    public function resolve(int $product_id, ?int $variation_id, ?string $size_token, bool $latest_only = false): array
+    public function resolve(int $product_id, ?int $variation_id, ?string $size_token, bool $latest_only = false, bool $published_only = true): array
     {
+        if ($published_only && get_post_status($product_id) !== 'publish') {
+            return [];
+        }
         global $wpdb;
         $t    = Schema::records_table();
         $rows = [];
@@ -175,12 +183,15 @@ final class CoaRepository
     }
 
     /** @return array<string,mixed>|null */
-    public function find(int $id): ?array
+    public function find(int $id, bool $published_only = true): ?array
     {
         global $wpdb;
         $t   = Schema::records_table();
         $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t} WHERE id = %d", $id));
         if (!$row) {
+            return null;
+        }
+        if ($published_only && get_post_status((int) $row->product_id) !== 'publish') {
             return null;
         }
         $h = $this->hydrate_many([$row]);
@@ -193,11 +204,11 @@ final class CoaRepository
      * @param array<string,mixed> $f lab, site, purity_max, product_id, page, per_page
      * @return array<int,array<string,mixed>>
      */
-    public function query(array $f): array
+    public function query(array $f, bool $published_only = true): array
     {
         global $wpdb;
         $t                = Schema::records_table();
-        [$where, $params] = $this->build_where($f);
+        [$where, $params] = $this->build_where($f, $published_only);
 
         $per      = max(1, min(200, (int) ($f['per_page'] ?? 50)));
         $page     = max(1, (int) ($f['page'] ?? 1));
@@ -216,11 +227,11 @@ final class CoaRepository
      *
      * @param array<string,mixed> $f
      */
-    public function count(array $f): int
+    public function count(array $f, bool $published_only = true): int
     {
         global $wpdb;
         $t                = Schema::records_table();
-        [$where, $params] = $this->build_where($f);
+        [$where, $params] = $this->build_where($f, $published_only);
         $sql              = "SELECT COUNT(*) FROM {$t} WHERE " . implode(' AND ', $where);
 
         return (int) ($params === []
@@ -232,9 +243,10 @@ final class CoaRepository
      * Shared WHERE clause + bind params for the catalog query and its count.
      *
      * @param array<string,mixed> $f
+     * @param bool $published_only Restrict to COAs whose product is published.
      * @return array{0:string[],1:array<int,mixed>}
      */
-    private function build_where(array $f): array
+    private function build_where(array $f, bool $published_only = true): array
     {
         $where  = ['source_present = 1'];
         $params = [];
@@ -254,6 +266,11 @@ final class CoaRepository
         if (!empty($f['product_id'])) {
             $where[]  = 'product_id = %d';
             $params[] = (int) $f['product_id'];
+        }
+        if ($published_only) {
+            // Literal subquery (no user input) — keeps catalog reads off draft products.
+            global $wpdb;
+            $where[] = "product_id IN (SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish')";
         }
 
         return [$where, $params];

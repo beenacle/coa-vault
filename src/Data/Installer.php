@@ -27,6 +27,11 @@ final class Installer
     /** wp_initialize_site callback — provision a freshly created network site. */
     public static function on_new_site(\WP_Site $site): void
     {
+        // is_plugin_active_for_network() lives in an admin include that isn't always
+        // loaded when a site is created programmatically (front-end signup, WP-CLI).
+        if (!function_exists('is_plugin_active_for_network')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
         if (!is_plugin_active_for_network(plugin_basename(COA_VAULT_FILE))) {
             return;
         }

@@ -22,7 +22,7 @@ final class AdminRenderer
 
     public function render_list(int $product_id): string
     {
-        $records = $this->records->find_by_product($product_id);
+        $records = $this->records->find_by_product($product_id, true, false);
         if ($records === []) {
             return '<p class="coa-admin-empty">' . esc_html__('No COA batches yet.', 'coa-vault') . '</p>';
         }

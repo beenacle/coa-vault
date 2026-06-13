@@ -30,7 +30,10 @@ final class Normalize
             return self::trim_decimal($s) . 'mg';
         }
         if (preg_match('/([\d.]+)\s*-?\s*(mcg|mg|kg|g|iu|ml|kit)?/u', $s, $m) === 1) {
-            $unit = $m[2] !== '' ? $m[2] : 'mg';
+            // The unit group is optional: when it doesn't match (a number followed by an
+            // unrecognized unit, e.g. "30 caps") $m[2] is unset, so default to mg here —
+            // testing $m[2] !== '' would both warn and skip the intended default.
+            $unit = !empty($m[2]) ? $m[2] : 'mg';
             return self::trim_decimal($m[1]) . $unit;
         }
         // Non-numeric size label (rare) — collapse whitespace, keep as-is.

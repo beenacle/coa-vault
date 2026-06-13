@@ -45,13 +45,14 @@ final class ProductCoaController
 
     public function list_for_product(\WP_REST_Request $request): \WP_REST_Response
     {
-        $product_id = (int) $request['id'];
-        $size       = $request->get_param('size');
+        $product_id     = (int) $request['id'];
+        $size           = $request->get_param('size');
+        $published_only = !current_user_can('edit_products');
 
         if ($size !== null && $size !== '') {
-            $records = $this->records->resolve($product_id, null, (string) $size, (bool) $request->get_param('latest'));
+            $records = $this->records->resolve($product_id, null, (string) $size, (bool) $request->get_param('latest'), $published_only);
         } else {
-            $records = $this->records->find_by_product($product_id);
+            $records = $this->records->find_by_product($product_id, true, $published_only);
         }
 
         return new \WP_REST_Response(RecordSchema::public_list($records), 200);
@@ -63,7 +64,7 @@ final class ProductCoaController
         $variation_id = $request->get_param('variation_id') ? (int) $request->get_param('variation_id') : null;
         $size         = $request->get_param('size') !== null ? (string) $request->get_param('size') : null;
 
-        $records = $this->records->resolve($product_id, $variation_id, $size, (bool) $request->get_param('latest'));
+        $records = $this->records->resolve($product_id, $variation_id, $size, (bool) $request->get_param('latest'), !current_user_can('edit_products'));
 
         return new \WP_REST_Response([
             'records' => RecordSchema::public_list($records),

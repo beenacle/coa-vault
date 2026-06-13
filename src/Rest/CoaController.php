@@ -72,13 +72,13 @@ final class CoaController
             'product_id' => $request->get_param('product_id'),
             'page'       => $request->get_param('page'),
             'per_page'   => $request->get_param('per_page'),
-        ]);
+        ], !current_user_can('edit_products'));
         return new \WP_REST_Response(RecordSchema::public_list($records), 200);
     }
 
     public function show(\WP_REST_Request $request): \WP_REST_Response
     {
-        $record = $this->records->find((int) $request['id']);
+        $record = $this->records->find((int) $request['id'], !current_user_can('edit_products'));
         if ($record === null) {
             return new \WP_REST_Response(['message' => 'Not found'], 404);
         }
@@ -88,24 +88,24 @@ final class CoaController
     public function create(\WP_REST_Request $request): \WP_REST_Response
     {
         [$columns, $chars] = RecordInput::to_columns((array) $request->get_json_params());
-        if ($columns['product_id'] <= 0) {
-            return new \WP_REST_Response(['message' => 'product_id is required'], 400);
+        if ($columns['product_id'] <= 0 || get_post_type($columns['product_id']) !== 'product') {
+            return new \WP_REST_Response(['message' => 'product_id must reference an existing product'], 400);
         }
         $id     = $this->records->save_from_admin(null, $columns, $chars);
-        $record = $this->records->find($id);
+        $record = $this->records->find($id, false);
         return new \WP_REST_Response($record !== null ? RecordSchema::public_shape($record) : null, 201);
     }
 
     public function update(\WP_REST_Request $request): \WP_REST_Response
     {
         $id = (int) $request['id'];
-        if ($this->records->find($id) === null) {
+        if ($this->records->find($id, false) === null) {
             return new \WP_REST_Response(['message' => 'Not found'], 404);
         }
         [$columns, $chars] = RecordInput::to_columns((array) $request->get_json_params());
         unset($columns['product_id']); // immutable on update
         $this->records->save_from_admin($id, $columns, $chars);
-        $record = $this->records->find($id);
+        $record = $this->records->find($id, false);
         return new \WP_REST_Response($record !== null ? RecordSchema::public_shape($record) : null, 200);
     }
 

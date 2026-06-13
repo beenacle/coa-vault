@@ -18,7 +18,7 @@ final class Assets
     public function enqueue(string $hook): void
     {
         $screen     = function_exists('get_current_screen') ? get_current_screen() : null;
-        $is_product = $screen && $screen->post_type === 'product' && in_array($screen->base, ['post', 'edit'], true) && $screen->base === 'post';
+        $is_product = $screen && $screen->post_type === 'product' && $screen->base === 'post';
         $is_coa     = str_contains($hook, 'coa-vault');
 
         if (!$is_product && !$is_coa) {

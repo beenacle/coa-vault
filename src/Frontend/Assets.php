@@ -42,13 +42,19 @@ final class Assets
         ]);
     }
 
-    /** Load on product pages, plus any singular post/page whose content uses [coa_vault]. */
+    /** Load on product pages, plus any singular post/page using the shortcode or the block. */
     private function should_load(): bool
     {
         if (function_exists('is_product') && is_product()) {
             return true;
         }
         $post = get_post();
-        return $post instanceof \WP_Post && has_shortcode((string) $post->post_content, 'coa_vault');
+        if (!$post instanceof \WP_Post) {
+            return false;
+        }
+        // Also cover the `coa-vault/panel` block so its viewScript handle is registered
+        // and the REST base/nonce are localized when the block is used off product pages.
+        return has_shortcode((string) $post->post_content, 'coa_vault')
+            || has_block('coa-vault/panel', $post);
     }
 }
