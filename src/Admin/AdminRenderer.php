@@ -108,6 +108,33 @@ final class AdminRenderer
             <h4 class="coa-admin-form-title">' . esc_html__('Add / edit COA batch', 'coa-vault') . '</h4>
             <input type="hidden" class="coa-f-id" value="">
             <input type="hidden" class="coa-f-variation" value="">
+
+            <div class="coa-media">
+                <input type="hidden" class="coa-f-fileid" value="">
+                <input type="file" class="coa-scan-input" accept="image/*,application/pdf" hidden>
+                <div class="coa-drop">
+                    <span class="dashicons dashicons-media-document coa-drop-icon" aria-hidden="true"></span>
+                    <p class="coa-drop-text">' . esc_html__('Drag a certificate here, or', 'coa-vault') . '</p>
+                    <p class="coa-drop-actions">
+                        <button type="button" class="button button-primary coa-upload">' . esc_html__('Upload', 'coa-vault') . '</button>
+                        <button type="button" class="button coa-pick-media">' . esc_html__('Media Library', 'coa-vault') . '</button>
+                    </p>
+                    <span class="description">' . esc_html__('Reads the QR code and fields for you and attaches the file. Optional — you can also just type the details below.', 'coa-vault') . '</span>
+                </div>
+                <div class="coa-media-set" hidden>
+                    <span class="coa-thumb" aria-hidden="true"></span>
+                    <span class="coa-media-meta">
+                        <strong class="coa-f-filename"></strong>
+                        <span class="coa-media-sub"></span>
+                        <span class="coa-media-actions">
+                            <button type="button" class="button-link coa-replace">' . esc_html__('Replace', 'coa-vault') . '</button>
+                            <button type="button" class="button-link coa-remove-media">' . esc_html__('Remove', 'coa-vault') . '</button>
+                        </span>
+                    </span>
+                </div>
+                <span class="coa-scan-status" role="status" aria-live="polite"></span>
+            </div>
+
             <p>
                 <label>' . esc_html__('Applies to', 'coa-vault') . ' <select class="coa-f-size-select">' . $sizes . '</select></label>
                 <label>' . esc_html__('Batch', 'coa-vault') . ' <input type="text" class="coa-f-batch"></label>
@@ -118,15 +145,15 @@ final class AdminRenderer
                 <label>' . esc_html__('Purity %', 'coa-vault') . ' <input type="number" step="0.0001" class="coa-f-purity"></label>
                 <label>' . esc_html__('Mass mg', 'coa-vault') . ' <input type="number" step="0.0001" class="coa-f-mass"></label>
             </p>
-            <p class="coa-f-report-row">
-                <input type="hidden" class="coa-f-fileid" value="">
-                <button type="button" class="button coa-pick-media">' . esc_html__('Select report image/PDF', 'coa-vault') . '</button>
-                <span class="coa-f-filename"></span>
-                <label>' . esc_html__('or Report URL', 'coa-vault') . ' <input type="url" class="coa-f-url" placeholder="https://"></label>
-            </p>
-            <p class="coa-f-report-row">
-                <label>' . esc_html__('Verify / source link', 'coa-vault') . ' <input type="url" class="coa-f-verify" placeholder="https://janoshik.com/... or chromate.org/verify?..."></label>
-            </p>
+
+            <details class="coa-advanced">
+                <summary>' . esc_html__('Advanced — report URL &amp; verify link', 'coa-vault') . '</summary>
+                <p class="coa-f-report-row">
+                    <label>' . esc_html__('Report URL', 'coa-vault') . ' <input type="url" class="coa-f-url" placeholder="https://"></label>
+                    <label>' . esc_html__('Verify / source link', 'coa-vault') . ' <input type="url" class="coa-f-verify" placeholder="https://janoshik.com/... or chromate.org/verify?..."></label>
+                </p>
+            </details>
+
             <div class="coa-f-chars">
                 <strong>' . esc_html__('Extra characteristics', 'coa-vault') . '</strong>
                 <div class="coa-f-chars-rows"></div>

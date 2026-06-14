@@ -29,10 +29,12 @@ final class Assets
 
         if ($is_product) {
             wp_enqueue_media();
+            // Bundled QR decoder (jsQR, Apache-2.0) — read in-browser at scan time.
+            wp_enqueue_script('coa-vault-jsqr', COA_VAULT_URL . 'assets/js/vendor/jsqr.min.js', [], '1.4.0', true);
             wp_enqueue_script(
                 'coa-vault-admin',
                 COA_VAULT_URL . 'assets/js/coa-admin.js',
-                ['jquery'],
+                ['jquery', 'coa-vault-jsqr'],
                 COA_VAULT_VERSION,
                 true
             );
@@ -40,10 +42,15 @@ final class Assets
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce'   => wp_create_nonce(BatchController::NONCE),
                 'i18n'    => [
-                    'remove' => __('remove', 'coa-vault'),
-                    'name'   => __('name', 'coa-vault'),
-                    'value'  => __('value', 'coa-vault'),
-                    'unit'   => __('unit', 'coa-vault'),
+                    'remove'     => __('remove', 'coa-vault'),
+                    'name'       => __('name', 'coa-vault'),
+                    'value'      => __('value', 'coa-vault'),
+                    'unit'       => __('unit', 'coa-vault'),
+                    'scanning'     => __('Reading certificate…', 'coa-vault'),
+                    'scanDone'     => __('Read — review the fields below before saving.', 'coa-vault'),
+                    'scanManual'   => __('File attached and QR read — enter the figures below.', 'coa-vault'),
+                    'scanFail'     => __('Could not read that file.', 'coa-vault'),
+                    'selectReport' => __('Select certificate', 'coa-vault'),
                 ],
             ]);
         }

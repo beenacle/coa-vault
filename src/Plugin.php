@@ -10,6 +10,8 @@ use CoaVault\Admin\Assets as AdminAssets;
 use CoaVault\Admin\BatchController;
 use CoaVault\Admin\ProductCoverage;
 use CoaVault\Admin\ProductPanel;
+use CoaVault\Admin\ScanController;
+use CoaVault\Admin\Settings;
 use CoaVault\Data\CoaRepository;
 use CoaVault\Data\Installer;
 use CoaVault\Data\SizeAliasBuilder;
@@ -97,8 +99,10 @@ final class Plugin
         $admin_renderer = new AdminRenderer($this->records(), new SizeAliasBuilder());
         (new ProductPanel($admin_renderer))->register();
         (new BatchController($this->records(), $admin_renderer))->register();
+        (new ScanController())->register();
         (new AdminMenu($this->records()))->register();
         (new ProductCoverage($this->records()))->register();
+        (new Settings())->register();
         (new AdminAssets())->register();
     }
 

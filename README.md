@@ -2,11 +2,15 @@
 
 Certificate of Analysis (COA) management for WooCommerce — by **Beenacle**.
 
+Built for WooCommerce shops that publish third‑party lab results — peptide, supplement, and
+research‑chemical stores — to store, display, and scan‑import Certificates of Analysis per
+product, size, and variation.
+
 Plugin-owned custom tables, simple **and** variable product support, multi-COA per
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.1.5.** Core is self-contained and distribution-oriented. Legacy data
+> **Status: v0.2.0.** Core is self-contained and distribution-oriented. Legacy data
 > import lives in a separate, optional **COA Vault — Migration** companion plugin, so
 > the shippable core carries no site-specific code. See [CHANGELOG.md](CHANGELOG.md).
 
@@ -22,8 +26,9 @@ src/Support/                  Normalize · Vocab · Report · Hash  (one source 
 src/Data/                     Schema (3 tables) · Installer · DTOs · Repositories · SizeAliasBuilder · RecordInput
 src/Rest/                     RestServiceProvider · ProductCoaController · CoaController · RecordSchema
 src/Frontend/                 RenderService · VariationInjector · Shortcode · Block · AutoInject · Assets
-src/Admin/                    ProductPanel · BatchController · AdminRenderer · ListTable · AdminMenu · Assets
-assets/ · blocks/             frontend + admin JS/CSS, coa-vault/panel block
+src/Admin/                    ProductPanel · BatchController · ScanController · AdminRenderer · ListTable · AdminMenu · ProductCoverage · Settings · Assets
+src/Ingest/                   ClaudeClient  (optional AI certificate reading)
+assets/ · blocks/             frontend + admin JS/CSS (incl. bundled jsQR), coa-vault/panel block
 ```
 
 ## REST API (`coa-vault/v1`)
@@ -47,6 +52,13 @@ assets/ · blocks/             frontend + admin JS/CSS, coa-vault/panel block
 Activate the plugin — tables are created on activation and kept current on update
 (`dbDelta`, versioned via `coa_vault_db_version`). Add COAs from the product editor's
 **Certificates of Analysis** box, or place `[coa_vault]` / the `coa-vault/panel` block.
+
+- **Settings:** COA → Settings (storefront display, auto-placement, delete-data-on-uninstall).
+- **Scan / import:** on the product COA box, drop a certificate image/PDF — the QR verify link
+  is read in-browser, the file is sideloaded, and a new COA is **pre-filled for review** (never
+  auto-saved). Set an Anthropic key (COA → Settings, or the `COA_VAULT_ANTHROPIC_KEY` constant)
+  to also read batch/purity/mass/date off the document via `claude-haiku-4-5` (override with the
+  `coa_vault_claude_model` filter); without a key, QR + file only.
 
 ## Decisions baked in
 - **Storage:** custom tables (not ACF/CPT/meta).

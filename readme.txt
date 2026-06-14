@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.1.6
+Stable tag: 0.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,10 @@ support for **per-size / per-variation** certificates.
 * Exposes a REST API under `coa-vault/v1` for headless / custom displays.
 * Admin: a per-product COA editor and a catalog-wide COA list, plus a COA-coverage
   column and a "No COA" filter on the Products screen so you can spot gaps at a glance.
+* Settings page (COA → Settings) for the display and data options.
+* Scan / import: drop a certificate image or PDF on a product to read its QR verify link
+  and pre-fill a new COA for review — optionally reading the figures off the document with
+  AI (see the FAQ).
 * HPOS (High-Performance Order Storage) compatible.
 
 **Requirements**
@@ -77,7 +81,36 @@ delete. They are only dropped if you explicitly opt in via the
 A separate, optional **COA Vault — Migration** companion handles one-time imports from
 legacy schemas. The core plugin has no dependency on it.
 
+= How does "Scan / import certificate" work? =
+
+On a product's COA box, click **Scan / import certificate** and choose the lab's
+certificate (image or PDF). The QR code is read in your browser to fill the lab and
+verification link, the file is added to the Media Library, and a new COA is pre-filled for
+you to review and save — nothing is saved automatically. If an Anthropic API key is set
+(COA → Settings, or the `COA_VAULT_ANTHROPIC_KEY` constant), it also reads the batch,
+purity, mass and analysis date off the document; without a key you fill those in yourself.
+
+= Is the AI reading required, and is my data sent anywhere? =
+
+It is optional and off until you add a key. When enabled, the certificate is sent to the
+Anthropic API to extract the fields (a fraction of a cent per certificate). Certificates
+are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` in
+`wp-config.php` keeps the key out of the database.
+
 == Changelog ==
+
+= 0.2.0 =
+* New: a **Settings** page (COA → Settings) for the display and data options — storefront
+  display, automatic product-page placement, and whether to delete COA data on uninstall.
+* New: **Scan / import certificate** on the product COA box — one media zone where you drag a
+  certificate, upload, or pick from the Media Library; it attaches the file and reads it in a
+  single step, then shows a thumbnail with Replace / Remove. The QR fills the lab and verify link;
+  with an optional Anthropic API key it also reads the batch, purity, mass and date (blends pre-fill
+  each component's mass; triplicate results are averaged to one figure). Without a key it attaches
+  the file and reads the QR, and you enter the figures. A new COA is always pre-filled for review,
+  never saved automatically.
+* Admin: the first COA submenu is now "All COAs", and the Settings wording is clearer about the
+  storefront display master switch.
 
 = 0.1.6 =
 * Security: public REST reads now return certificates only for published products; signed-in
@@ -124,6 +157,11 @@ legacy schemas. The core plugin has no dependency on it.
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.2.0 =
+Adds a Settings page and an optional "Scan / import certificate" tool (QR + AI reading). No
+action needed — existing certificates and behaviour are unchanged, and the AI reading stays
+off until you add an API key.
 
 = 0.1.6 =
 Security fix: public REST endpoints no longer expose certificates for unpublished products.

@@ -45,11 +45,12 @@ final class Vocab
      * exactly or as a parent domain (so verify.janoshik.com → janoshik.com).
      */
     public const LAB_HOSTS = [
-        'janoshik.com'        => 'janoshik',
-        'chromate.org'        => 'chromate',
-        'trustpointelims.com' => 'trustpointe',
-        'accumarklabs.com'    => 'accumark',
-        'btlabtesting.com'    => 'bt_labs',
+        'janoshik.com'             => 'janoshik',
+        'chromate.org'             => 'chromate',
+        'trustpointelims.com'      => 'trustpointe',
+        'trustpointeanalytics.com' => 'trustpointe',
+        'accumarklabs.com'         => 'accumark',
+        'btlabtesting.com'         => 'bt_labs',
     ];
 
     /** Canonical measurement name slug => display label. */

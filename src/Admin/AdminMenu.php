@@ -33,6 +33,18 @@ final class AdminMenu
             'dashicons-clipboard',
             56
         );
+
+        // The first submenu auto-mirrors the top-level "COA" label, which reads
+        // oddly ("COA → COA"). Re-register it with the same slug to relabel just
+        // that item — the catalog-wide list — without touching the top-level menu.
+        add_submenu_page(
+            'coa-vault',
+            __('Certificates of Analysis', 'coa-vault'),
+            __('All COAs', 'coa-vault'),
+            'edit_products',
+            'coa-vault',
+            [$this, 'render_list_page']
+        );
     }
 
     public function render_list_page(): void

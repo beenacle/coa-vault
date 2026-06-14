@@ -15,6 +15,10 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+// The Anthropic API key is a live secret with no compliance reason to survive
+// removal — always purge it, even on the default data-PRESERVING uninstall.
+delete_option('coa_vault_anthropic_key');
+
 if (!get_option('coa_vault_drop_data_on_uninstall')) {
     return;
 }
