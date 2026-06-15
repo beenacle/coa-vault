@@ -45,6 +45,20 @@ final class Settings
         return defined('COA_VAULT_ANTHROPIC_KEY') && (string) COA_VAULT_ANTHROPIC_KEY !== '';
     }
 
+    /**
+     * A masked preview of the stored key for the settings field — confirms a key is
+     * saved (and which one, via its tail) without exposing the secret. Keeps a short
+     * leading slice and the last 4 chars, like a dashboard key display.
+     */
+    private static function mask_key(string $key): string
+    {
+        $len = strlen($key);
+        if ($len <= 10) {
+            return str_repeat('*', 10); // too short to reveal any portion safely
+        }
+        return substr($key, 0, 7) . str_repeat('*', 10) . substr($key, -4);
+    }
+
     public function register(): void
     {
         add_action('admin_menu', [$this, 'add_page']);
@@ -217,12 +231,16 @@ final class Settings
             echo '<p class="description">' . esc_html__('Configured via the COA_VAULT_ANTHROPIC_KEY constant in wp-config.php.', 'coa-vault') . '</p>';
             return;
         }
-        $stored = get_option(self::KEY_OPTION, '') !== '';
+        $key    = (string) get_option(self::KEY_OPTION, '');
+        $stored = $key !== '';
         printf(
             '<input type="password" name="%s" value="" autocomplete="off" class="regular-text" placeholder="%s">',
             esc_attr(self::KEY_OPTION),
-            $stored ? esc_attr__('Stored — leave blank to keep, or paste a new key to replace', 'coa-vault') : 'sk-ant-...'
+            $stored ? esc_attr(self::mask_key($key)) : 'sk-ant-...'
         );
+        if ($stored) {
+            echo '<p class="description">' . esc_html__('A key is saved (shown masked in the field). Leave it blank to keep that key, or paste a new key to replace it.', 'coa-vault') . '</p>';
+        }
         echo '<p class="description">' . esc_html__('Used only for the scan feature; sub-cent per certificate. Stored in the database — for stronger secrecy define COA_VAULT_ANTHROPIC_KEY in wp-config.php instead. Certificates are public lab documents, not customer data.', 'coa-vault') . '</p>';
     }
 }
