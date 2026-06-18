@@ -25,6 +25,9 @@ final class Normalize
         if ($s === '') {
             return '';
         }
+        // Drop thousands separators so "1,000mg" canonicalizes to 1000mg, not 1mg
+        // (the [\d.]+ capture below otherwise stops at the comma).
+        $s = preg_replace('/(?<=\d),(?=\d)/', '', $s) ?? $s;
         // Pure number → assume milligrams (the dominant unit across all sites).
         if (is_numeric($s)) {
             return self::trim_decimal($s) . 'mg';
@@ -151,10 +154,13 @@ final class Normalize
 
     private static function trim_decimal(string $n): string
     {
+        // Canonicalize a leading-dot decimal so ".5" and "0.5" produce the same token.
+        if (str_starts_with($n, '.')) {
+            $n = '0' . $n;
+        }
         if (!str_contains($n, '.')) {
             return $n;
         }
-        $n = rtrim($n, '0');
-        return rtrim($n, '.');
+        return rtrim(rtrim($n, '0'), '.');
     }
 }

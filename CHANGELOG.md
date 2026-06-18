@@ -3,6 +3,21 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.2.1
+- New: a plugin **icon**, shown on the Plugins screen and the update / "View details" modal.
+- New: the Anthropic API key field (COA → Settings) shows a **masked preview** when a key is saved,
+  so you can confirm a key is set (and which one) without exposing it.
+- Change: the catalog archive (`[coa_vault all="true"]`) is now a native single-open **accordion**
+  (one product open at a time, collapsed by default), and the bundled frontend ships a cleaner,
+  lighter default style. No JavaScript.
+- Fix: whole-number purity/mass values rendered incorrectly on the storefront (a 10 mg mass showed
+  as "1 mg", 100% as "1%", a 0 reading as blank). They now display correctly.
+- Fix: size normalization now handles thousands separators ("1,000mg" → 1000mg) and leading-dot
+  decimals (".5mg" ≡ "0.5mg"), so a certificate always resolves to the right size / variation.
+- Fix: on multisite networks, uninstall now cleans every site's COA tables, options and stored API
+  key — previously only the main site was cleaned.
+- Fix: the "View details" changelog now shows the release notes instead of a bare compare link.
+
 ## 0.2.0
 - New: a **Settings** page (COA → Settings) for the plugin's display and data options —
   storefront display, automatic product-page placement, and whether to delete COA data when

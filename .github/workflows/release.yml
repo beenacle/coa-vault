@@ -36,9 +36,24 @@ jobs:
           ( cd "$RUNNER_TEMP" && zip -rq "$GITHUB_WORKSPACE/coa-vault.zip" coa-vault )
           echo "Built coa-vault.zip for v${VERSION}"
 
+      - name: Extract changelog for this version
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Pull the "## X.Y.Z" section out of CHANGELOG.md so the GitHub release —
+          # and therefore the in-plugin "View details" changelog modal — shows the
+          # curated notes instead of an auto-generated compare link.
+          awk -v v="$VERSION" '$0 == "## " v {grab=1; next} /^## / {grab=0} grab {print}' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
+            echo "See CHANGELOG.md for the full list of changes." > "$RUNNER_TEMP/release-notes.md"
+          fi
+          echo "----- release notes for v${VERSION} -----"
+          cat "$RUNNER_TEMP/release-notes.md"
+
       - name: Publish release with asset
         uses: softprops/action-gh-release@v2
         with:
           files: coa-vault.zip
+          body_path: ${{ runner.temp }}/release-notes.md
           generate_release_notes: true
           make_latest: true

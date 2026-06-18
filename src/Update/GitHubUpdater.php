@@ -52,6 +52,17 @@ final class GitHubUpdater
         add_action('upgrader_process_complete', [$this, 'flush_cache'], 10, 2);
     }
 
+    /** Plugin icon URLs (served from the installed plugin) for the update list + details modal. */
+    private function icons(): array
+    {
+        return [
+            'svg'     => plugins_url('assets/icon.svg', $this->plugin_file),
+            '1x'      => plugins_url('assets/icon-128x128.png', $this->plugin_file),
+            '2x'      => plugins_url('assets/icon-256x256.png', $this->plugin_file),
+            'default' => plugins_url('assets/icon-256x256.png', $this->plugin_file),
+        ];
+    }
+
     /**
      * Advertise an available update in the plugins update transient when GitHub's
      * latest release is newer than what's installed.
@@ -76,7 +87,7 @@ final class GitHubUpdater
             'new_version'  => $release['version'],
             'url'          => $release['html_url'],
             'package'      => $release['package'],
-            'icons'        => [],
+            'icons'        => $this->icons(),
             'banners'      => [],
             'tested'       => $release['tested'],
             'requires'     => $release['requires'],
@@ -119,6 +130,7 @@ final class GitHubUpdater
             'author'        => '<a href="https://beenacle.com">Beenacle</a>',
             'homepage'      => $release['html_url'],
             'download_link' => $release['package'],
+            'icons'         => $this->icons(),
             'requires'      => $release['requires'],
             'requires_php'  => $release['requires_php'],
             'tested'        => $release['tested'],

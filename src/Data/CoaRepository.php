@@ -121,9 +121,7 @@ final class CoaRepository
         return $out;
     }
 
-    // ──────────────────────────────────────────────────────────────────────
     // Reads — return records in the canonical shaped form used by REST + render.
-    // ──────────────────────────────────────────────────────────────────────
 
     /** @return array<int,array<string,mixed>> size asc, then newest-first. */
     public function find_by_product(int $product_id, bool $only_present = true, bool $published_only = true): array
@@ -347,9 +345,7 @@ final class CoaRepository
         return $grouped;
     }
 
-    // ──────────────────────────────────────────────────────────────────────
     // Admin writes (manual records — not migration). Keyed by id, not source_hash.
-    // ──────────────────────────────────────────────────────────────────────
 
     /**
      * @param array<string,mixed> $columns
@@ -401,9 +397,7 @@ final class CoaRepository
         $wpdb->delete(Schema::records_table(), ['id' => $id]);
     }
 
-    // ──────────────────────────────────────────────────────────────────────
     // Hydration
-    // ──────────────────────────────────────────────────────────────────────
 
     /**
      * @param array<int,object> $rows

@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -99,6 +99,18 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
 
 == Changelog ==
 
+= 0.2.1 =
+* New: a plugin icon, shown on the Plugins screen and the update / "View details" modal.
+* New: the Anthropic API key field (COA → Settings) shows a masked preview when a key is saved.
+* Change: the catalog archive ([coa_vault all="true"]) is now a native single-open accordion
+  (collapsed by default), with a cleaner, lighter default style. No JavaScript.
+* Fix: whole-number purity/mass rendered incorrectly on the storefront (a 10 mg mass showed as
+  "1 mg", 100% as "1%"). Now shown correctly.
+* Fix: size normalization handles thousands separators ("1,000mg") and leading-dot decimals
+  (".5mg" = "0.5mg"), so a certificate resolves to the right size / variation.
+* Fix: on multisite, uninstall now cleans every site's tables, options and stored API key.
+* Fix: the changelog modal now shows the release notes instead of a bare compare link.
+
 = 0.2.0 =
 * New: a **Settings** page (COA → Settings) for the display and data options — storefront
   display, automatic product-page placement, and whether to delete COA data on uninstall.
@@ -157,6 +169,10 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.2.1 =
+Fixes a storefront display bug where whole-number purity/mass values showed incorrectly (e.g. a
+10 mg mass as "1 mg"); adds a plugin icon and a native accordion for the COA archive. Recommended.
 
 = 0.2.0 =
 Adds a Settings page and an optional "Scan / import certificate" tool (QR + AI reading). No

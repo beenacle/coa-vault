@@ -1,16 +1,16 @@
-/* Structure only — colours, type, borders and links inherit from the theme.
-   COA Vault deliberately ships almost no opinionated styling so the output
-   looks like native theme content. Override these classes to taste. */
+/* COA Vault — minimal accordion. Structure only: hairline dividers, padded tap
+   targets and one consistent chevron; type and colour are inherited from the theme.
+   No cards, rounded corners, tints or colour, and no JavaScript — the disclosures
+   and the single-open archive are native <details>/<summary>. Override any class
+   to restyle. */
 
 .coa-vault-wrap { margin: 1.5em 0; }
 .coa-vault-wrap.is-loading { opacity: .5; transition: opacity .15s ease; }
 
 .coa-vault-list { list-style: none; margin: 0; padding: 0; }
-.coa-vault-item { margin: 0 0 1em; }
-.coa-vault-item > details > summary { cursor: pointer; }
-
 .coa-vault-sub,
-.coa-vault-tag { opacity: .7; font-size: .9em; }
+.coa-vault-tag,
+.coa-vault-archive__meta { opacity: .65; font-size: .9em; }
 
 .coa-vault-facts { display: grid; grid-template-columns: auto 1fr; gap: .15em .75em; margin: .5em 0; }
 .coa-vault-facts dt { opacity: .7; }
@@ -21,6 +21,42 @@
 
 .coa-vault-verify { display: inline-block; }
 .coa-vault-empty { opacity: .7; }
+.coa-vault-archive__link { display: inline-block; margin: .25em 0 .5em; }
 
-.coa-vault-archive { display: grid; gap: 1.5em; }
-.coa-vault-archive__title { margin: 0 0 .5em; }
+/* hairline dividers */
+.coa-vault-list,
+.coa-vault-archive { border-top: 1px solid rgba(128, 128, 128, .2); }
+.coa-vault-archive { display: block; }
+.coa-vault-item,
+.coa-vault-archive__item { margin: 0; border-bottom: 1px solid rgba(128, 128, 128, .2); }
+
+/* padded summaries + one consistent chevron (replaces the inconsistent native marker) */
+.coa-vault-item > details > summary,
+.coa-vault-archive__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  padding: .8em .1em;
+}
+.coa-vault-item > details > summary::-webkit-details-marker,
+.coa-vault-archive__summary::-webkit-details-marker { display: none; }
+.coa-vault-item > details > summary::after,
+.coa-vault-archive__summary::after {
+  content: "";
+  margin-left: auto;
+  flex: none;
+  width: .5em; height: .5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  opacity: .4;
+  transition: transform .2s ease;
+}
+.coa-vault-item > details[open] > summary::after,
+.coa-vault-archive__item[open] .coa-vault-archive__summary::after { transform: rotate(225deg); }
+
+/* open-body spacing */
+.coa-vault-item > details > :not(summary) { padding: 0 .1em .8em; }
+.coa-vault-archive__item > .coa-vault-list { padding-left: 1em; margin-bottom: .4em; }

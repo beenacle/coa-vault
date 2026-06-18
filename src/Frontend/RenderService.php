@@ -64,18 +64,30 @@ final class RenderService
             return '<p class="coa-vault-empty">' . esc_html__('No certificates of analysis available.', 'coa-vault') . '</p>';
         }
 
+        // A native single-open accordion: the shared `name` makes the browser close
+        // the other items when one opens — no JavaScript. All start collapsed so the
+        // archive reads as a scannable index of every product.
         $out = '<div class="coa-vault-archive">';
         foreach ($grouped as $product_id => $records) {
-            $title   = get_the_title($product_id);
-            $link    = get_permalink($product_id);
-            $heading = $link
-                ? '<a href="' . esc_url($link) . '">' . esc_html($title) . '</a>'
-                : esc_html($title);
-            $out .= sprintf(
-                '<section class="coa-vault-archive__item"><h3 class="coa-vault-archive__title">%s</h3>%s</section>',
-                $heading,
-                $this->render_records($records)
-            );
+            $title = get_the_title($product_id);
+            $link  = get_permalink($product_id);
+            $count = count($records);
+
+            $summary = '<summary class="coa-vault-archive__summary">'
+                . '<span class="coa-vault-archive__name">' . esc_html($title) . '</span>'
+                . '<span class="coa-vault-archive__meta">'
+                . esc_html(sprintf(_n('%d batch', '%d batches', $count, 'coa-vault'), $count))
+                . '</span></summary>';
+
+            $body = '';
+            if ($link) {
+                $body .= '<a class="coa-vault-archive__link" href="' . esc_url($link) . '">'
+                    . esc_html__('View product', 'coa-vault') . ' &#8599;</a>';
+            }
+            $body .= $this->render_records($records);
+
+            $out .= '<details class="coa-vault-archive__item" name="coa-vault-archive">'
+                . $summary . $body . '</details>';
         }
         $out .= '</div>';
         return $out;
@@ -113,16 +125,16 @@ final class RenderService
         // Results as a native description list (key/value) — themes style <dl> already.
         $facts = [];
         if ($r['purity_pct'] !== null) {
-            $facts[] = [__('Purity', 'coa-vault'), rtrim(rtrim((string) $r['purity_pct'], '0'), '.') . '%'];
+            $facts[] = [__('Purity', 'coa-vault'), self::num($r['purity_pct']) . '%'];
         }
         if ($r['mass_mg'] !== null) {
-            $facts[] = [__('Mass', 'coa-vault'), rtrim(rtrim((string) $r['mass_mg'], '0'), '.') . ' mg'];
+            $facts[] = [__('Mass', 'coa-vault'), self::num($r['mass_mg']) . ' mg'];
         }
         foreach ((array) $r['characteristics'] as $c) {
             if (in_array($c['name'], ['purity', 'mass'], true)) {
                 continue; // already shown via the hot columns
             }
-            $val     = is_float($c['value']) ? rtrim(rtrim((string) $c['value'], '0'), '.') : (string) $c['value'];
+            $val     = is_float($c['value']) ? self::num($c['value']) : (string) $c['value'];
             $facts[] = [($c['label'] ?: $c['name']), trim($val . ' ' . $c['unit'])];
         }
 
@@ -140,6 +152,13 @@ final class RenderService
         return '<li class="coa-vault-item"><details' . ($latest ? ' open' : '') . '>'
             . $summary . $dl . $report
             . '</details></li>';
+    }
+
+    /** Format a measured number: trim trailing fractional zeros without mangling whole numbers (10.0 stays "10", not "1"). */
+    private static function num($value): string
+    {
+        $s = (string) $value;
+        return str_contains($s, '.') ? rtrim(rtrim($s, '0'), '.') : $s;
     }
 
     /**
