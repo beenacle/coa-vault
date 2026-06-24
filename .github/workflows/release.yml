@@ -1,19 +1,32 @@
 name: Release
 
-# Two ways to cut a release. Both build the distributable plugin zip and publish (or
-# update) the matching GitHub Release with it attached; the GitHubUpdater in the plugin
-# then offers that release to every site from Dashboard → Updates.
+# Unified release workflow — identical across the beenacle plugin repos.
 #
-#   1. Bump the version in coa-vault.php and push to main → auto-tagged (vX.Y.Z) and
-#      released. It only fires when the version actually changed (no tag yet), so routine
-#      pushes never release. To bump but hold, put "[skip release]" in the commit message.
-#   2. Push a vX.Y.Z tag yourself → released immediately (the manual escape hatch).
+# Two ways to release; both build the production zip and publish/update the GitHub
+# Release (the in-plugin GitHub-Releases updater then offers it to installed sites):
+#   1. Bump the "Version:" in the main plugin file and push to the default branch →
+#      auto-tagged vX.Y.Z and released — but ONLY when that version has no tag yet,
+#      so routine pushes never release. Put "[skip release]" in the commit to hold.
+#   2. Push a vX.Y.Z tag, or run this workflow manually against an existing tag →
+#      released immediately.
+#
+# Self-adapting — no per-repo edits:
+#   * main file   = the root *.php carrying a "Plugin Name:" / "Version:" header
+#   * version     = that header (and any *_VERSION define is stamped to match)
+#   * deps        = composer install --no-dev only if composer.json exists AND
+#                   vendor/ is not committed
+#   * notes       = the version's section from CHANGELOG.md, else readme.txt, else
+#                   GitHub's auto-generated notes
+#   * dist files  = .distignore if present, else a sensible default exclude set
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing vX.Y.Z tag to (re)build and publish'
+        required: true
 
 permissions:
   contents: write
@@ -25,83 +38,137 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history + tags, so we can tell if this version already shipped
+          fetch-depth: 0   # full history + tags, to detect an already-released version
 
-      - name: Decide whether to release
-        id: decide
+      - name: Detect plugin and decide whether to release
+        id: meta
         run: |
           set -euo pipefail
 
-          # Manual tag push: release exactly that tag, no questions asked.
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-            echo "Triggered by tag $GITHUB_REF_NAME → release v$VERSION"
-            echo "release=true"      >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
-            exit 0
+          # --- main plugin file: root *.php with a Plugin Name header (fallback: a Version header) ---
+          MAIN=""
+          for f in *.php; do
+            [ -f "$f" ] || continue
+            if grep -qiE '^[[:space:]]*\*?[[:space:]]*Plugin Name:' "$f"; then MAIN="$f"; break; fi
+          done
+          if [ -z "$MAIN" ]; then
+            for f in *.php; do
+              [ -f "$f" ] || continue
+              if grep -qE '^[[:space:]]*\*?[[:space:]]*Version:' "$f"; then MAIN="$f"; break; fi
+            done
+          fi
+          [ -n "$MAIN" ] || { echo "::error::No root *.php with a Version: header found"; exit 1; }
+          SLUG="${MAIN%.php}"
+          HEADER_VERSION=$(grep -E '^[[:space:]]*\*?[[:space:]]*Version:' "$MAIN" | head -1 | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]\r')
+          [ -n "$HEADER_VERSION" ] || { echo "::error::Could not read Version: from $MAIN"; exit 1; }
+
+          # --- resolve version + whether to release ---
+          RELEASE=false
+          IS_TAG=false
+          case "${GITHUB_REF:-}" in refs/tags/*) IS_TAG=true ;; esac
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"; VERSION="${VERSION#v}"; RELEASE=true
+          elif [ "$IS_TAG" = "true" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"; RELEASE=true
+          else
+            VERSION="$HEADER_VERSION"
+            if printf '%s' "$(git log -1 --pretty=%B)" | grep -qiE '\[(skip|no)[ -]?release\]'; then
+              echo "Holding: commit message opts out ([skip release])."
+            elif git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+              echo "Holding: tag v$VERSION already exists (version unchanged)."
+            else
+              echo "New version v$VERSION — will tag and release."; RELEASE=true
+            fi
           fi
 
-          # Push to main: release only when coa-vault.php's version has no tag yet.
-          VERSION=$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' coa-vault.php | head -1 | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
-          TAG="v$VERSION"
-          echo "coa-vault.php version: $VERSION"
-
-          if printf '%s' "$(git log -1 --pretty=%B)" | grep -qiE '\[(skip|no)[ -]?release\]'; then
-            echo "Commit opts out via [skip release] — holding."
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          # Tag/manual builds must match the plugin header (guards a mistagged release).
+          if [ "$RELEASE" = "true" ] && { [ "$IS_TAG" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; } && [ "$VERSION" != "$HEADER_VERSION" ]; then
+            echo "::error::Release version v$VERSION does not match $MAIN Version: $HEADER_VERSION"; exit 1
           fi
 
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists — version unchanged, nothing to release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          # Need composer only when there are REAL runtime deps (a require key beyond
+          # php / ext-*) AND vendor/ isn't already committed. Platform-only composer.json
+          # (e.g. just {"php": ">=7.4"}) is left alone — no useless vendor/ in the zip.
+          NEED_COMPOSER=false
+          if [ -f composer.json ] && [ ! -d vendor ]; then
+            if jq -e '((.require // {}) | keys - ["php"] | map(select(startswith("ext-") | not)) | length) > 0' composer.json >/dev/null 2>&1; then
+              NEED_COMPOSER=true
+            fi
           fi
 
-          echo "New version $VERSION — will tag $TAG and release."
-          echo "release=true"     >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "main=$MAIN"                   >> "$GITHUB_OUTPUT"
+          echo "slug=$SLUG"                   >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"             >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE"             >> "$GITHUB_OUTPUT"
+          echo "need_composer=$NEED_COMPOSER" >> "$GITHUB_OUTPUT"
+          echo "Detected $MAIN (slug=$SLUG) header=$HEADER_VERSION → release=$RELEASE version=$VERSION need_composer=$NEED_COMPOSER"
 
-      - name: Build coa-vault.zip
-        if: steps.decide.outputs.release == 'true'
+      - name: Setup PHP + Composer
+        if: steps.meta.outputs.release == 'true' && steps.meta.outputs.need_composer == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer:v2
+
+      - name: Install production dependencies
+        if: steps.meta.outputs.release == 'true' && steps.meta.outputs.need_composer == 'true'
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+      - name: Build plugin zip
+        if: steps.meta.outputs.release == 'true'
         run: |
           set -euo pipefail
-          VERSION="${{ steps.decide.outputs.version }}"
-          DEST="$RUNNER_TEMP/coa-vault"
+          VERSION="${{ steps.meta.outputs.version }}"
+          MAIN="${{ steps.meta.outputs.main }}"
+          SLUG="${{ steps.meta.outputs.slug }}"
 
+          # Stamp the resolved version into the header AND any *_VERSION constant, so
+          # the shipped plugin can never report an older version than its release.
+          sed -i -E "s/^([[:space:]]*\*?[[:space:]]*Version:[[:space:]]*).*/\1${VERSION}/" "$MAIN"
+          sed -i -E "s/(define\([[:space:]]*'[A-Z0-9_]*_VERSION'[[:space:]]*,[[:space:]]*')[^']*('[[:space:]]*\)[[:space:]]*;?)/\1${VERSION}\2/" "$MAIN"
+
+          DEST="$RUNNER_TEMP/$SLUG"
           mkdir -p "$DEST"
-          rsync -a --exclude-from=.distignore ./ "$DEST/"
+          if [ -f .distignore ]; then
+            rsync -a --exclude='.git' --exclude-from=.distignore ./ "$DEST/"
+          else
+            rsync -a \
+              --exclude='.git' --exclude='.github' --exclude='.gitignore' \
+              --exclude='.gitattributes' --exclude='.distignore' --exclude='.DS_Store' \
+              --exclude='dist' --exclude='build' --exclude='node_modules' \
+              --exclude='tests' --exclude='*.log' --exclude='composer.phar' \
+              ./ "$DEST/"
+          fi
+          ( cd "$RUNNER_TEMP" && zip -rq "$GITHUB_WORKSPACE/$SLUG.zip" "$SLUG" )
 
-          # Belt-and-suspenders: stamp the release version into the shipped header and
-          # constant so the installed plugin can never report an older version than the
-          # release it came from (which would loop "update available" forever).
-          sed -i "s/^ \* Version:.*/ * Version:              ${VERSION}/" "$DEST/coa-vault.php"
-          sed -i "s/define('COA_VAULT_VERSION', '[^']*')/define('COA_VAULT_VERSION', '${VERSION}')/" "$DEST/coa-vault.php"
+          TOP=$(unzip -Z1 "$GITHUB_WORKSPACE/$SLUG.zip" | head -1)
+          [ "$TOP" = "$SLUG/" ] || { echo "::error::Zip top-level is '$TOP', expected '$SLUG/'"; exit 1; }
+          echo "Built $SLUG.zip for v$VERSION"
 
-          ( cd "$RUNNER_TEMP" && zip -rq "$GITHUB_WORKSPACE/coa-vault.zip" coa-vault )
-          echo "Built coa-vault.zip for v${VERSION}"
-
-      - name: Extract changelog for this version
-        if: steps.decide.outputs.release == 'true'
+      - name: Extract release notes
+        if: steps.meta.outputs.release == 'true'
         run: |
           set -euo pipefail
-          VERSION="${{ steps.decide.outputs.version }}"
-          # Pull the "## X.Y.Z" section out of CHANGELOG.md so the GitHub release —
-          # and therefore the in-plugin "View details" changelog modal — shows the
-          # curated notes instead of an auto-generated compare link.
-          awk -v v="$VERSION" '$0 == "## " v {grab=1; next} /^## / {grab=0} grab {print}' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
-          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
-            echo "See CHANGELOG.md for the full list of changes." > "$RUNNER_TEMP/release-notes.md"
+          VERSION="${{ steps.meta.outputs.version }}"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+          : > "$NOTES"
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="$VERSION" 'BEGIN{re="^##[[:space:]]+v?" v "([^0-9.]|$)"} $0 ~ re {g=1; next} /^##/ {g=0} g {print}' CHANGELOG.md > "$NOTES" || true
           fi
-          echo "----- release notes for v${VERSION} -----"
-          cat "$RUNNER_TEMP/release-notes.md"
+          if [ ! -s "$NOTES" ] && [ -f readme.txt ]; then
+            awk -v v="$VERSION" 'BEGIN{re="^=[[:space:]]+v?" v "([^0-9.]|$)"} $0 ~ re {g=1; next} /^==/ {g=0} /^=[[:space:]]/ {g=0} g {print}' readme.txt > "$NOTES" || true
+          fi
+          if [ ! -s "$NOTES" ]; then echo "See the commit history for the changes in v$VERSION." > "$NOTES"; fi
+          echo "----- release notes for v$VERSION -----"; cat "$NOTES"
 
       - name: Publish release with asset
-        if: steps.decide.outputs.release == 'true'
+        if: steps.meta.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.decide.outputs.version }}
-          files: coa-vault.zip
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: v${{ steps.meta.outputs.version }}
           body_path: ${{ runner.temp }}/release-notes.md
+          files: ${{ steps.meta.outputs.slug }}.zip
           generate_release_notes: true
           make_latest: true
