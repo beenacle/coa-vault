@@ -1,10 +1,17 @@
 name: Release
 
-# Tagging vX.Y.Z builds the distributable plugin zip and publishes (or updates) the
-# matching GitHub Release with it attached. The GitHubUpdater in the plugin then
-# offers that release to every site from Dashboard → Updates.
+# Two ways to cut a release. Both build the distributable plugin zip and publish (or
+# update) the matching GitHub Release with it attached; the GitHubUpdater in the plugin
+# then offers that release to every site from Dashboard → Updates.
+#
+#   1. Bump the version in coa-vault.php and push to main → auto-tagged (vX.Y.Z) and
+#      released. It only fires when the version actually changed (no tag yet), so routine
+#      pushes never release. To bump but hold, put "[skip release]" in the commit message.
+#   2. Push a vX.Y.Z tag yourself → released immediately (the manual escape hatch).
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -17,19 +24,57 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + tags, so we can tell if this version already shipped
 
-      - name: Build coa-vault.zip
+      - name: Decide whether to release
+        id: decide
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Manual tag push: release exactly that tag, no questions asked.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "Triggered by tag $GITHUB_REF_NAME → release v$VERSION"
+            echo "release=true"      >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Push to main: release only when coa-vault.php's version has no tag yet.
+          VERSION=$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' coa-vault.php | head -1 | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+          TAG="v$VERSION"
+          echo "coa-vault.php version: $VERSION"
+
+          if printf '%s' "$(git log -1 --pretty=%B)" | grep -qiE '\[(skip|no)[ -]?release\]'; then
+            echo "Commit opts out via [skip release] — holding."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — version unchanged, nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "New version $VERSION — will tag $TAG and release."
+          echo "release=true"     >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build coa-vault.zip
+        if: steps.decide.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.decide.outputs.version }}"
           DEST="$RUNNER_TEMP/coa-vault"
 
           mkdir -p "$DEST"
           rsync -a --exclude-from=.distignore ./ "$DEST/"
 
-          # Belt-and-suspenders: stamp the tag version into the shipped header and
-          # constant so the installed plugin can never report an older version than
-          # the release it came from (which would loop "update available" forever).
+          # Belt-and-suspenders: stamp the release version into the shipped header and
+          # constant so the installed plugin can never report an older version than the
+          # release it came from (which would loop "update available" forever).
           sed -i "s/^ \* Version:.*/ * Version:              ${VERSION}/" "$DEST/coa-vault.php"
           sed -i "s/define('COA_VAULT_VERSION', '[^']*')/define('COA_VAULT_VERSION', '${VERSION}')/" "$DEST/coa-vault.php"
 
@@ -37,9 +82,10 @@ jobs:
           echo "Built coa-vault.zip for v${VERSION}"
 
       - name: Extract changelog for this version
+        if: steps.decide.outputs.release == 'true'
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.decide.outputs.version }}"
           # Pull the "## X.Y.Z" section out of CHANGELOG.md so the GitHub release —
           # and therefore the in-plugin "View details" changelog modal — shows the
           # curated notes instead of an auto-generated compare link.
@@ -51,8 +97,10 @@ jobs:
           cat "$RUNNER_TEMP/release-notes.md"
 
       - name: Publish release with asset
+        if: steps.decide.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.decide.outputs.version }}
           files: coa-vault.zip
           body_path: ${{ runner.temp }}/release-notes.md
           generate_release_notes: true
