@@ -10,6 +10,9 @@ versions) is in `readme.txt` for WordPress.
 - Change: editors previewing a **draft** product now see its certificates by default. The public
   still only sees COAs on published products — this just lets a logged-in editor preview a draft
   without extra setup (the default is filterable via `coa_vault_published_only_default`).
+- Change: the Settings page's two storefront-display checkboxes are now a single, clearer **3-way
+  choice** — automatic placement, manual (shortcode / block), or off. No behaviour change; the same
+  underlying options are written, and the previously confusing "off + automatic" dead state is gone.
 
 ## 0.2.1
 - New: a plugin **icon**, shown on the Plugins screen and the update / "View details" modal.

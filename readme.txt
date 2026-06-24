@@ -104,6 +104,8 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
   COA is fully reachable (the preview shows page 1; the link opens the complete file).
 * Change: editors previewing a draft product now see its certificates by default; the public still
   only sees COAs on published products. Filterable via coa_vault_published_only_default.
+* Change: the Settings page's storefront-display options are now one clear 3-way choice (automatic /
+  manual / off) instead of two coupled checkboxes. No behaviour change.
 
 = 0.2.1 =
 * New: a plugin icon, shown on the Plugins screen and the update / "View details" modal.

@@ -84,8 +84,15 @@ final class Settings
             'sanitize_callback' => [self::class, 'sanitize_bool'],
         ];
 
-        register_setting(self::GROUP, 'coa_vault_frontend', $bool + ['default' => '1']);
-        register_setting(self::GROUP, 'coa_vault_autoinject', $bool + ['default' => '1']);
+        // One 3-way control over where the built-in output appears; its sanitizer
+        // writes the legacy coa_vault_frontend / coa_vault_autoinject flags that the
+        // renderers (and their same-named filters) still read, so consumers are
+        // untouched and existing sites keep their behaviour.
+        register_setting(self::GROUP, 'coa_vault_display_mode', [
+            'type'              => 'string',
+            'sanitize_callback' => [self::class, 'sanitize_display_mode'],
+            'default'           => 'auto',
+        ]);
         register_setting(self::GROUP, 'coa_vault_drop_data_on_uninstall', $bool + ['default' => '0']);
         register_setting(self::GROUP, self::KEY_OPTION, [
             'type'              => 'string',
@@ -100,16 +107,9 @@ final class Settings
             self::PAGE
         );
         add_settings_field(
-            'coa_vault_frontend',
+            'coa_vault_display_mode',
             __('Storefront display', 'coa-vault'),
-            [$this, 'field_frontend'],
-            self::PAGE,
-            'coa_vault_display'
-        );
-        add_settings_field(
-            'coa_vault_autoinject',
-            __('Automatic placement', 'coa-vault'),
-            [$this, 'field_autoinject'],
+            [$this, 'field_display_mode'],
             self::PAGE,
             'coa_vault_display'
         );
@@ -196,20 +196,54 @@ final class Settings
         ) . '</p>';
     }
 
-    public function field_frontend(): void
+    /**
+     * The current display mode, derived from the legacy flags (the source of truth)
+     * so the selected radio always matches actual behaviour — no separate state to drift.
+     */
+    private static function current_mode(): string
     {
-        $on = get_option('coa_vault_frontend', '1') !== '0';
-        echo '<label><input type="checkbox" name="coa_vault_frontend" value="1"' . checked($on, true, false) . '> '
-            . esc_html__('Let the plugin display certificates on the storefront', 'coa-vault') . '</label>';
-        echo '<p class="description">' . esc_html__('Master switch for the plugin’s built-in output — the [coa_vault] shortcode, the COA block, and automatic placement (below). Turn it off to hide all of that and supply your own markup instead (e.g. a page-builder template); the REST API and stored data stay available either way.', 'coa-vault') . '</p>';
+        if (get_option('coa_vault_frontend', '1') === '0') {
+            return 'off';
+        }
+        return get_option('coa_vault_autoinject', '1') !== '0' ? 'auto' : 'manual';
     }
 
-    public function field_autoinject(): void
+    public function field_display_mode(): void
     {
-        $on = get_option('coa_vault_autoinject', '1') !== '0';
-        echo '<label><input type="checkbox" name="coa_vault_autoinject" value="1"' . checked($on, true, false) . '> '
-            . esc_html__('Show certificates automatically on product pages', 'coa-vault') . '</label>';
-        echo '<p class="description">' . esc_html__('Adds a certificate panel below the product summary, with no setup. Turn off to place COAs yourself with the [coa_vault] shortcode or the COA block instead. Requires “Storefront display” (above).', 'coa-vault') . '</p>';
+        $mode    = self::current_mode();
+        $options = [
+            'auto'   => __('Automatically, below the product summary', 'coa-vault'),
+            'manual' => __('Only where I place the [coa_vault] shortcode or COA block', 'coa-vault'),
+            'off'    => __('Don’t display — I provide my own markup', 'coa-vault'),
+        ];
+
+        echo '<fieldset>';
+        foreach ($options as $value => $label) {
+            printf(
+                '<label style="display:block;margin:.35em 0;"><input type="radio" name="coa_vault_display_mode" value="%s"%s> %s</label>',
+                esc_attr($value),
+                checked($mode, $value, false),
+                esc_html($label)
+            );
+        }
+        echo '</fieldset>';
+        echo '<p class="description">' . esc_html__('Where the plugin’s built-in certificate output appears. “Don’t display” also stops its frontend CSS/JS from loading — useful when a page-builder template or custom code renders COAs instead. The REST API and stored certificates stay available in every mode, so a custom display keeps working.', 'coa-vault') . '</p>';
+    }
+
+    /**
+     * Map the 3-way display choice onto the legacy flags the renderers read:
+     *   auto   → frontend on,  autoinject on
+     *   manual → frontend on,  autoinject off
+     *   off    → frontend off  (autoinject moot; cleared for tidiness)
+     *
+     * @param mixed $value
+     */
+    public static function sanitize_display_mode($value): string
+    {
+        $mode = in_array($value, ['auto', 'manual', 'off'], true) ? (string) $value : 'auto';
+        update_option('coa_vault_frontend', $mode === 'off' ? '0' : '1');
+        update_option('coa_vault_autoinject', $mode === 'auto' ? '1' : '0');
+        return $mode;
     }
 
     public function field_uninstall(): void
