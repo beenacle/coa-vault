@@ -18,6 +18,7 @@
 
 .coa-vault-report { margin: .75em 0; }
 .coa-vault-report img { max-width: 100%; height: auto; }
+.coa-vault-report-pdf { display: inline-block; margin: 0 0 .5em; }
 
 .coa-vault-verify { display: inline-block; }
 .coa-vault-empty { opacity: .7; }

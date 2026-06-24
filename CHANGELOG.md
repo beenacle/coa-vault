@@ -3,6 +3,14 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.2.2
+- New: a PDF certificate now shows a **"View full report (PDF)"** link beneath its preview, so a
+  multi-page COA is fully reachable — the preview shows page 1, and the link opens the complete file
+  (e.g. a second page with endotoxin / sterility results) in the browser's PDF viewer.
+- Change: editors previewing a **draft** product now see its certificates by default. The public
+  still only sees COAs on published products — this just lets a logged-in editor preview a draft
+  without extra setup (the default is filterable via `coa_vault_published_only_default`).
+
 ## 0.2.1
 - New: a plugin **icon**, shown on the Plugins screen and the update / "View details" modal.
 - New: the Anthropic API key field (COA → Settings) shows a **masked preview** when a key is saved,

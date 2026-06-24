@@ -181,7 +181,7 @@ final class RenderService
         $parts = [];
 
         if ($file_id > 0) {
-            // Native: image OR PDF preview, with srcset, handled by WordPress.
+            // Native: image OR PDF page-1 preview, with srcset, handled by WordPress.
             $img  = wp_get_attachment_image($file_id, 'large', true, [
                 'class'   => 'coa-vault-report-img',
                 'alt'     => $alt,
@@ -194,6 +194,15 @@ final class RenderService
                     esc_url($href),
                     $img
                 );
+                // A PDF preview only shows page 1; link the full file so the rest
+                // (e.g. page 2's endotoxin/sterility results) is one click away.
+                if (str_starts_with((string) get_post_mime_type($file_id), 'application/pdf')) {
+                    $parts[] = sprintf(
+                        '<a class="coa-vault-report-pdf" href="%s" target="_blank" rel="noopener">%s &#8599;</a>',
+                        esc_url($href),
+                        esc_html__('View full report (PDF)', 'coa-vault')
+                    );
+                }
             }
         } elseif ($url !== '') {
             // External URL with no local attachment: inline images, link anything else.

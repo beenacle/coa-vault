@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -99,6 +99,12 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
 
 == Changelog ==
 
+= 0.2.2 =
+* New: a PDF certificate shows a "View full report (PDF)" link beneath its preview, so a multi-page
+  COA is fully reachable (the preview shows page 1; the link opens the complete file).
+* Change: editors previewing a draft product now see its certificates by default; the public still
+  only sees COAs on published products. Filterable via coa_vault_published_only_default.
+
 = 0.2.1 =
 * New: a plugin icon, shown on the Plugins screen and the update / "View details" modal.
 * New: the Anthropic API key field (COA → Settings) shows a masked preview when a key is saved.
@@ -169,6 +175,10 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.2.2 =
+Adds a "View full report (PDF)" link so multi-page PDF certificates are fully viewable, and lets
+editors preview a draft product's COAs. No action needed; public visibility is unchanged.
 
 = 0.2.1 =
 Fixes a storefront display bug where whole-number purity/mass values showed incorrectly (e.g. a

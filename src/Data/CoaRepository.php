@@ -123,11 +123,23 @@ final class CoaRepository
 
     // Reads — return records in the canonical shaped form used by REST + render.
 
-    /** @return array<int,array<string,mixed>> size asc, then newest-first. */
-    public function find_by_product(int $product_id, bool $only_present = true, bool $published_only = true): array
+    /**
+     * Default read visibility when a caller passes no flag: the public sees only
+     * published-product COAs, while editors (edit_products) also see drafts — so a
+     * draft-product preview works without every caller opting in. Filterable, e.g.
+     * to force strict published-only everywhere.
+     */
+    private static function default_published_only(): bool
     {
-        // Reads default to published-only so the public REST endpoints can't leak
-        // COAs for draft/pending products; admin/editor callers pass false.
+        return (bool) apply_filters('coa_vault_published_only_default', !current_user_can('edit_products'));
+    }
+
+    /** @return array<int,array<string,mixed>> size asc, then newest-first. */
+    public function find_by_product(int $product_id, bool $only_present = true, ?bool $published_only = null): array
+    {
+        // No flag → hide drafts from the public but let editors preview them; an
+        // explicit true/false always wins (the ??= only fills a null/omitted arg).
+        $published_only ??= self::default_published_only();
         if ($published_only && get_post_status($product_id) !== 'publish') {
             return [];
         }
@@ -146,8 +158,9 @@ final class CoaRepository
      *
      * @return array<int,array<string,mixed>>
      */
-    public function resolve(int $product_id, ?int $variation_id, ?string $size_token, bool $latest_only = false, bool $published_only = true): array
+    public function resolve(int $product_id, ?int $variation_id, ?string $size_token, bool $latest_only = false, ?bool $published_only = null): array
     {
+        $published_only ??= self::default_published_only();
         if ($published_only && get_post_status($product_id) !== 'publish') {
             return [];
         }
@@ -181,8 +194,9 @@ final class CoaRepository
     }
 
     /** @return array<string,mixed>|null */
-    public function find(int $id, bool $published_only = true): ?array
+    public function find(int $id, ?bool $published_only = null): ?array
     {
+        $published_only ??= self::default_published_only();
         global $wpdb;
         $t   = Schema::records_table();
         $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t} WHERE id = %d", $id));
