@@ -3,6 +3,30 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.2.3
+- New: **re-read data from a certificate.** In the product COA editor, an attached
+  certificate now has a **Re-read data** action that runs the AI reader over the file
+  again and shows a review/diff — one tick per figure (batch, lab, date, purity, mass)
+  that differs from what's saved — so you can backfill a blank field or correct a wrong
+  one without retyping. Nothing changes until you tick it and click Apply, and it never
+  touches the size, the attached file, or the verify link. Handy after a bulk import.
+  Requires an Anthropic key (COA → Settings); off without one.
+- New: **sortable catalog list.** The catalog-wide **All COAs** screen now sorts by
+  Product, Lab, Date and Purity — one click on the column header — for scanning a whole
+  catalog's certificates at a glance.
+- New: **smarter scan / import.** Dropping a certificate now prefers the lab's real
+  verification link and **ignores compound-reference links** (PubChem, NCBI, Wikipedia,
+  ChemSpider, etc.) that some COAs print — so the "verify link" field no longer fills with
+  a molecule-database URL. A file that contains **more than one certificate** (e.g. two
+  size variants in one PDF) is flagged with a warning instead of silently reading only the
+  first — you add the others by hand.
+- New: **in-box scan progress.** While a dropped certificate is read, the upload zone shows
+  a native spinner and locks, so a second click or drop can't fire a duplicate import.
+- Change: the built-in lab suggestions were expanded and curated (Janoshik, Chromate,
+  Krause Analytical, BT Lab Testing, TrustPointe, Freedom Diagnostics, MZ Biolabs, AccuMark
+  Labs), with better host inference so a lab's link is recognized on scan. Any other lab
+  still works as free text.
+
 ## 0.2.2
 - New: a PDF certificate now shows a **"View full report (PDF)"** link beneath its preview, so a
   multi-page COA is fully reachable — the preview shows page 1, and the link opens the complete file

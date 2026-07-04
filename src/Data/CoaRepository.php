@@ -224,13 +224,40 @@ final class CoaRepository
 
         $per      = max(1, min(200, (int) ($f['per_page'] ?? 50)));
         $page     = max(1, (int) ($f['page'] ?? 1));
+
+        [$order, $join] = self::order_by($f);
         $params[] = $per;
         $params[] = ($page - 1) * $per;
 
-        $sql = "SELECT * FROM {$t} WHERE " . implode(' AND ', $where)
-             . ' ORDER BY analysis_date DESC, id DESC LIMIT %d OFFSET %d';
+        $sql = "SELECT t.* FROM {$t} t{$join} WHERE " . implode(' AND ', $where)
+             . " {$order} LIMIT %d OFFSET %d";
 
         return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, ...$params)));
+    }
+
+    /**
+     * Whitelisted ORDER BY (+ any JOIN it needs) from the request's orderby/order.
+     * Columns are mapped from a fixed allow-list, never interpolated from input.
+     *
+     * @param array<string,mixed> $f
+     * @return array{0:string,1:string} [order-by clause, join fragment]
+     */
+    private static function order_by(array $f): array
+    {
+        global $wpdb;
+        $cols = [
+            'product'  => 'p.post_title',
+            'date'     => 't.analysis_date',
+            'lab'      => 't.lab_label',
+            'purity'   => 't.purity_pct',
+        ];
+        $key = (string) ($f['orderby'] ?? '');
+        if (!isset($cols[$key])) {
+            return ['ORDER BY t.analysis_date DESC, t.id DESC', ''];
+        }
+        $dir  = strtoupper((string) ($f['order'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+        $join = $key === 'product' ? " LEFT JOIN {$wpdb->posts} p ON p.ID = t.product_id" : '';
+        return ["ORDER BY {$cols[$key]} {$dir}, t.id DESC", $join];
     }
 
     /**

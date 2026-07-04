@@ -7,6 +7,10 @@ namespace CoaVault\Support;
 /**
  * Controlled vocabularies shared by the whole plugin (migration, admin, frontend).
  * One source of truth so every site enforces the same labs and measurement names.
+ *
+ * Lab list is deliberately CURATED, not exhaustive — the long tail is handled by
+ * free-text entry + auto-slugging (see Normalize::lab()). The labs listed here are the
+ * ones with real market share worth first-classing for autocomplete + host inference.
  */
 final class Vocab
 {
@@ -14,9 +18,12 @@ final class Vocab
     public const LABS = [
         'janoshik'    => 'Janoshik',
         'chromate'    => 'Chromate',
-        'trustpointe' => 'TrustPointe',
-        'accumark'    => 'AccuMark Labs',
+        'krause'      => 'Krause Analytical',
         'bt_labs'     => 'BT Lab Testing',
+        'trustpointe' => 'TrustPointe',
+        'freedom'     => 'Freedom Diagnostics',
+        'mz_biolabs'  => 'MZ Biolabs',
+        'accumark'    => 'AccuMark Labs',
     ];
 
     /**
@@ -24,19 +31,29 @@ final class Vocab
      * Extend as new aliases are discovered in the wild.
      */
     public const LAB_ALIASES = [
-        'janoshik'              => 'janoshik',
-        'chromate'              => 'chromate',
+        'janoshik'                  => 'janoshik',
+        'janoshik analytical'       => 'janoshik',
+        'chromate'                  => 'chromate',
+        'chromate analytical'       => 'chromate',
+        'krause'                    => 'krause',
+        'krause analytical'         => 'krause',
+        'krause labs'               => 'krause',
         'trustpointe analytics llc' => 'trustpointe',
-        'trustpointe analytics' => 'trustpointe',
-        'trustpointe'           => 'trustpointe',
-        'trustpoint analytics'  => 'trustpointe',
-        'trustpoint'            => 'trustpointe',
-        'accumark labs'         => 'accumark',
-        'accumark'              => 'accumark',
-        'bt lab testing'        => 'bt_labs',
-        'btlabtesting'          => 'bt_labs',
-        'btlabs'                => 'bt_labs',
-        'bt labs'               => 'bt_labs',
+        'trustpointe analytics'     => 'trustpointe',
+        'trustpointe'               => 'trustpointe',
+        'trustpoint analytics'      => 'trustpointe',
+        'trustpoint'                => 'trustpointe',
+        'freedom diagnostics'       => 'freedom',
+        'freedom diagnostics testing' => 'freedom',
+        'mz biolabs'                => 'mz_biolabs',
+        'mz-biolabs'                => 'mz_biolabs',
+        'mzbiolabs'                 => 'mz_biolabs',
+        'accumark labs'             => 'accumark',
+        'accumark'                  => 'accumark',
+        'bt lab testing'            => 'bt_labs',
+        'btlabtesting'              => 'bt_labs',
+        'btlabs'                    => 'bt_labs',
+        'bt labs'                   => 'bt_labs',
     ];
 
     /**
@@ -47,10 +64,13 @@ final class Vocab
     public const LAB_HOSTS = [
         'janoshik.com'             => 'janoshik',
         'chromate.org'             => 'chromate',
+        'krauselabs.com'           => 'krause',
+        'btlabtesting.com'         => 'bt_labs',
         'trustpointelims.com'      => 'trustpointe',
         'trustpointeanalytics.com' => 'trustpointe',
+        'freedomdiagnosticstesting.com' => 'freedom',
         'accumarklabs.com'         => 'accumark',
-        'btlabtesting.com'         => 'bt_labs',
+        'mzbiolabs.com'            => 'mz_biolabs',
     ];
 
     /** Canonical measurement name slug => display label. */

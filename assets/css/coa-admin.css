@@ -27,7 +27,49 @@
 .coa-media-meta { display: flex; flex-direction: column; gap: .15em; }
 .coa-media-sub { color: #646970; font-size: .85em; }
 .coa-media-actions .button-link { margin-right: .75em; }
-.coa-scan-status { display: block; margin-top: .5em; color: #646970; font-size: .85em; min-height: 1.2em; }
+.coa-scan-status { display: block; margin-top: .6em; color: #646970; font-size: .9em; min-height: 1.4em; }
+
+/* Reading state: the loading lives INSIDE the zone (native WP spinner), the box is
+   locked, and the attached-file card is hidden — so the same in-box spinner shows for
+   a first upload/drop and for Replace. No duplicate clicks/drops can fire. */
+.coa-admin-form.is-scanning .coa-media-set { display: none !important; }
+.coa-admin-form.is-scanning .coa-drop {
+  display: block !important; /* show even when collapsed to the attached-file card */
+  pointer-events: none;
+  border-style: solid;
+  border-color: var(--wp-admin-theme-color, #2271b1);
+}
+.coa-admin-form.is-scanning .coa-drop > :not(.coa-drop-loading) { display: none; }
+.coa-drop-loading { display: none; }
+.coa-admin-form.is-scanning .coa-drop-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4em;
+  padding: 1em 0;
+  color: var(--wp-admin-theme-color, #2271b1);
+  font-weight: 600;
+}
+.coa-drop-loading .spinner { float: none; margin: 0; }
+/* During a scan the in-box spinner is the visual cue; keep the status text in the DOM for
+   screen readers (aria-live) but hide it visually so it doesn't duplicate the box label. */
+.coa-admin-form.is-scanning .coa-scan-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Multi-certificate warning under the scan status (a single file held >1 certificate). */
+.coa-scan-warn { margin-top: .4em; padding: .5em .7em; border-left: 3px solid #dba617; background: #fcf9e8; color: #674e00; border-radius: 2px; font-weight: 600; }
+
+/* Re-read review: a diff of what a fresh AI read of the attached file would change,
+   applied only on confirm (never a blind overwrite). */
+.coa-reread-review { margin: 0 0 1em; padding: .6em .8em; background: #fff; border: 1px solid #dcdcde; border-left: 3px solid var(--wp-admin-theme-color, #2271b1); border-radius: 2px; }
+.coa-reread-head { margin: .1em 0 .5em; font-weight: 600; }
+.coa-reread-table { border-collapse: collapse; }
+.coa-reread-table td { padding: .15em .75em .15em 0; vertical-align: top; font-size: .9em; }
+.coa-reread-table label { display: inline; flex-direction: unset; margin: 0; font-size: 1em; }
+/* The form sets a blanket min-width:8em on inputs — undo it for the tick boxes so they
+   render as normal WordPress checkboxes, not stretched blue bars. */
+.coa-reread-review input[type="checkbox"] { min-width: 0; width: auto; margin: 0 .4em 0 0; }
+.coa-reread-old { color: #646970; text-decoration: line-through; }
+.coa-reread-new { color: #1e5e1e; font-weight: 600; }
 details.coa-advanced { margin: .5em 0 1em; }
 details.coa-advanced > summary { cursor: pointer; color: var(--wp-admin-theme-color, #2271b1); margin: .25em 0; }
 @media (max-width: 782px) {

@@ -222,6 +222,7 @@ final class RenderService
         }
 
         if ($verify !== '') {
+            // The lab's own verification link, shown so a shopper can check the source.
             $text = $lab_label !== ''
                 /* translators: %s: lab name, e.g. Janoshik */
                 ? sprintf(__('Verify on %s', 'coa-vault'), $lab_label)

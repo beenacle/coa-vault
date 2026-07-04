@@ -52,6 +52,10 @@
     $form.find('.coa-media-sub').text(sub.join(' · '));
     $form.find('.coa-drop').attr('hidden', true);
     $form.find('.coa-media-set').removeAttr('hidden');
+    // Re-read only makes sense for an actual attached file; a link-only COA (external
+    // report URL, no file_id) has nothing local to read. Inline display:none beats the
+    // stylesheet's mobile display rule; '' hands control back to CSS.
+    $form.find('.coa-reread').css('display', rep.file_id ? '' : 'none');
   }
 
   function clearMediaSet($form) {
@@ -71,6 +75,7 @@
     $form.find('.coa-f-variation').val('');
     $form.find('.coa-f-chars-rows').empty();
     $form.find('.coa-scan-status').text('');
+    $form.find('.coa-scan-warn, .coa-reread-review').remove();
     clearMediaSet($form);
   }
 
@@ -205,8 +210,19 @@
     var $root = ctx();
     if (!$root.length) { return; }
     var $form = $root.find('.coa-admin-form');
+    var scanning = false;
+
+    // Lock the certificate zone while a scan is in flight: the `is-scanning` class
+    // dims + disables the drop zone (CSS) and we disable its buttons, so a second
+    // click or drop can't fire a duplicate upload/read.
+    function setBusy(on) {
+      scanning = on;
+      $form.toggleClass('is-scanning', on);
+      $form.find('.coa-upload, .coa-replace, .coa-pick-media, .coa-reread').prop('disabled', on);
+    }
 
     function openPicker() {
+      if (scanning) { return; }
       $form.find('.coa-scan-input').val('').trigger('click');
     }
 
@@ -217,6 +233,9 @@
         var msg = res.data.ai_used ? coaAdmin.i18n.scanDone : coaAdmin.i18n.scanManual;
         if (res.data.peptide) { msg += ' — ' + res.data.peptide; }
         $status.text(msg);
+        if (res.data.warning) {
+          $('<div class="coa-scan-warn"></div>').text(res.data.warning).insertAfter($status);
+        }
         // The control that had focus (Upload / Media Library) is now hidden — move
         // focus to the visible Replace button so keyboard focus is not lost.
         var $replace = $form.find('.coa-replace');
@@ -229,9 +248,12 @@
 
     // Upload / drop a local file: read the QR + fields, attach it, and pre-fill.
     function setReportFromLocalFile(file) {
-      if (!file) { return; }
+      if (!file || scanning) { return; }
+      $form.find('.coa-scan-warn, .coa-reread-review').remove();
+      // Announced to screen readers (aria-live); hidden visually during the scan since the
+      // in-box spinner is the visual cue (CSS .is-scanning).
       var $status = $form.find('.coa-scan-status').text(coaAdmin.i18n.scanning);
-      var $busy = $form.find('.coa-upload, .coa-replace').prop('disabled', true);
+      setBusy(true);
       processCertificate(file, function (r) {
         var fd = new FormData();
         fd.append('action', 'coa_scan_report');
@@ -242,21 +264,156 @@
         $.ajax({ url: coaAdmin.ajaxurl, method: 'POST', data: fd, processData: false, contentType: false })
           .done(applyScan)
           .fail(function () { $status.text(coaAdmin.i18n.scanFail); })
-          .always(function () { $busy.prop('disabled', false); });
+          .always(function () { setBusy(false); });
       });
     }
 
-    // Pick an existing Media Library file: attach it and read its fields by id.
-    function setReportFromAttachment(id) {
+    // Read an existing Media Library file by id. `onDone` defaults to the scan pre-fill
+    // (Media Library pick); the Re-read action passes its own handler so the same read
+    // routes to a review/diff instead of merging blindly into the form.
+    function setReportFromAttachment(id, onDone) {
+      if (scanning) { return; }
+      // Drop any open re-read panel: it holds the PREVIOUS file's diff and must not
+      // survive a file swap (the Re-read flow rebuilds its own panel afterward).
+      $form.find('.coa-scan-warn, .coa-reread-review').remove();
       $form.find('.coa-scan-status').text(coaAdmin.i18n.scanning);
+      setBusy(true);
       $.post(coaAdmin.ajaxurl, {
         action: 'coa_scan_report',
         nonce: coaAdmin.nonce,
         product_id: $form.data('product-id'),
         attachment_id: id
       })
-        .done(applyScan)
-        .fail(function () { $form.find('.coa-scan-status').text(coaAdmin.i18n.scanFail); });
+        .done(onDone || applyScan)
+        .fail(function () { $form.find('.coa-scan-status').text(coaAdmin.i18n.scanFail); })
+        .always(function () { setBusy(false); });
+    }
+
+    // Field map for the Re-read review: the scalar figures a person would fix on an old
+    // COA. Size / variation and the attached file are intentionally NOT touched — those
+    // are set deliberately per record, not read off the page.
+    //
+    // The verify / source link is deliberately EXCLUDED: a re-read reads the file by id
+    // and never re-decodes the QR (that only happens in the browser for a freshly-dropped
+    // image), so the link would come purely from OCR of the printed URL — which for some
+    // labs (e.g. AccuMark's "/CODE" form) is the wrong/404 variant and would clobber the
+    // correct QR-derived link captured at first scan. Re-read is for the figures only.
+    var REREAD_FIELDS = [
+      { key: 'batch',  sel: '.coa-f-batch',  get: function (p) { return p.batch; } },
+      { key: 'lab',    sel: '.coa-f-lab',    get: function (p) { return p.lab ? p.lab.label : ''; } },
+      { key: 'date',   sel: '.coa-f-date',   get: function (p) { return p.analysis_date; } },
+      { key: 'purity', sel: '.coa-f-purity', get: function (p) { return p.purity_pct; }, num: true },
+      { key: 'mass',   sel: '.coa-f-mass',   get: function (p) { return p.mass_mg; }, num: true }
+    ];
+
+    // The characteristics currently in the form, normalized for a set comparison.
+    function currentChars() {
+      var out = [];
+      $form.find('.coa-char-row').each(function () {
+        var name = $.trim($(this).find('.coa-c-name').val() || '');
+        var value = $.trim($(this).find('.coa-c-value').val() || '');
+        if (!name && !value) { return; }
+        out.push({ name: name, value: value, unit: $.trim($(this).find('.coa-c-unit').val() || '') });
+      });
+      return out;
+    }
+    // Collapse a value that is a clean number to its canonical form ("10.0" -> "10") so
+    // trailing-zero formatting doesn't read as a change (a saved value_num round-trips
+    // through JSON stripped, while the AI returns the printed string). Anything not purely
+    // numeric ("<0.1", "10 mg", "N/A") is left untouched.
+    function canonNum(v) {
+      v = (v == null) ? '' : String(v).trim();
+      if (v !== '' && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(v)) {
+        var n = parseFloat(v);
+        if (!isNaN(n) && isFinite(n)) { return String(n); }
+      }
+      return v;
+    }
+    function charsKey(list) {
+      return (list || []).map(function (c) {
+        return (c.label || c.name || '') + ' ' + canonNum(c.value) + ' ' + (c.unit || '');
+      }).sort().join('|');
+    }
+
+    // Show a review/diff after a Re-read: one checked row per field the AI read that
+    // DIFFERS from the saved value (empty fields it fills, wrong values it corrects).
+    // Nothing is written until "Apply selected" — the record is still saved by the
+    // normal "Save batch", so "review, not blind overwrite" holds.
+    function showRereadReview(res) {
+      var t = coaAdmin.i18n.reread;
+      var $status = $form.find('.coa-scan-status');
+      $form.find('.coa-reread-review, .coa-scan-warn').remove();
+      if (!res || !res.success) {
+        $status.text((res && res.data && res.data.message) || coaAdmin.i18n.scanFail);
+        return;
+      }
+      var data = res.data || {};
+      if (data.warning) {
+        $('<div class="coa-scan-warn"></div>').text(data.warning).insertAfter($status);
+      }
+      if (!data.ai_used) { $status.text(t.off); return; }
+      var prefill = data.prefill || {};
+
+      var rows = [];
+      REREAD_FIELDS.forEach(function (f) {
+        var neu = f.get(prefill);
+        neu = (neu == null) ? '' : String(neu);
+        if (neu === '') { return; } // the AI read nothing for this field — leave it alone
+        var cur = $form.find(f.sel).val();
+        cur = (cur == null) ? '' : String(cur);
+        var same = f.num
+          ? (cur !== '' && parseFloat(cur) === parseFloat(neu))
+          : ($.trim(cur) === $.trim(neu));
+        if (same) { return; }
+        rows.push({ field: f, cur: cur, neu: neu });
+      });
+
+      var newChars = (prefill.characteristics || []).filter(function (c) {
+        return c.name !== 'purity' && c.name !== 'mass';
+      });
+      var charsChanged = newChars.length > 0 && charsKey(newChars) !== charsKey(currentChars());
+
+      if (!rows.length && !charsChanged) { $status.text(t.none); return; }
+
+      var $panel = $('<div class="coa-reread-review"></div>');
+      $panel.append($('<p class="coa-reread-head"></p>').text(t.head));
+      var $tbl = $('<table class="coa-reread-table"></table>');
+      rows.forEach(function (r) {
+        var $chk = $('<input type="checkbox" checked>').data('row', r);
+        var $tr = $('<tr></tr>');
+        $tr.append($('<td></td>').append(
+          $('<label></label>').append($chk).append(document.createTextNode(' ' + (t.fields[r.field.key] || r.field.key)))
+        ));
+        $tr.append($('<td class="coa-reread-vals"></td>')
+          .append($('<span class="coa-reread-old"></span>').text(r.cur === '' ? t.empty : r.cur))
+          .append(document.createTextNode(' → '))
+          .append($('<span class="coa-reread-new"></span>').text(r.neu)));
+        $tbl.append($tr);
+      });
+      if (charsChanged) {
+        // Left UNCHECKED by default: applying it replaces ALL characteristic rows
+        // wholesale, which would drop any the admin typed by hand — so it needs a
+        // deliberate tick, unlike the per-field scalar rows which are safe individual writes.
+        var $cchk = $('<input type="checkbox">').data('chars', newChars);
+        var $ctr = $('<tr></tr>');
+        $ctr.append($('<td></td>').append(
+          $('<label></label>').append($cchk).append(document.createTextNode(' ' + t.chars))
+        ));
+        $ctr.append($('<td class="coa-reread-vals"></td>').text('(' + newChars.length + ')'));
+        $tbl.append($ctr);
+      }
+      $panel.append($tbl);
+      $panel.append($('<p></p>')
+        .append($('<button type="button" class="button button-primary coa-reread-apply"></button>').text(t.apply))
+        .append(document.createTextNode(' '))
+        .append($('<button type="button" class="button coa-reread-cancel"></button>').text(t.cancel)));
+      // A labeled, focusable group: the Re-read button disabled itself (focus fell to
+      // <body>), so move focus into the panel — announcing its label to a screen reader
+      // and putting a keyboard user on the changes instead of stranding them at page top.
+      $panel.attr({ role: 'group', 'aria-label': t.head, tabindex: '-1' });
+      $form.find('.coa-media').after($panel);
+      $status.text('');
+      $panel.trigger('focus');
     }
 
     // Upload and Replace open the native file picker; the drop zone is a plain
@@ -281,11 +438,52 @@
       frame.open();
     });
 
+    // Re-read the already-attached file with AI and show a review/diff of what changed.
+    $root.on('click', '.coa-reread', function (e) {
+      e.preventDefault();
+      var id = $form.find('.coa-f-fileid').val();
+      if (!id || scanning) { return; }
+      // Pin the record + file this read belongs to. If the admin switches records or
+      // swaps the file while the (multi-second) read is in flight, discard the stale
+      // response instead of diffing this file's figures against a different record.
+      var editId = $form.find('.coa-f-id').val();
+      $form.find('.coa-reread-review').remove();
+      setReportFromAttachment(id, function (res) {
+        if ($form.find('.coa-f-id').val() !== editId || $form.find('.coa-f-fileid').val() !== id) { return; }
+        showRereadReview(res);
+      });
+    });
+
+    // Apply the ticked changes into the form (still not saved — the user clicks Save batch).
+    $root.on('click', '.coa-reread-apply', function (e) {
+      e.preventDefault();
+      var $panel = $(this).closest('.coa-reread-review');
+      $panel.find('input[type="checkbox"]:checked').each(function () {
+        var row = $(this).data('row');
+        var chars = $(this).data('chars');
+        if (row) {
+          $form.find(row.field.sel).val(row.neu);
+        } else if (chars) {
+          var $rows = $form.find('.coa-f-chars-rows').empty();
+          chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit)); });
+        }
+      });
+      $panel.remove();
+      $form.find('.coa-scan-status').text(coaAdmin.i18n.reread.applied);
+    });
+
+    $root.on('click', '.coa-reread-cancel', function (e) {
+      e.preventDefault();
+      $(this).closest('.coa-reread-review').remove();
+      $form.find('.coa-scan-status').text('');
+    });
+
     // Remove the attached file (the Media Library copy itself is kept).
     $root.on('click', '.coa-remove-media', function (e) {
       e.preventDefault();
       clearMediaSet($form);
       $form.find('.coa-scan-status').text('');
+      $form.find('.coa-reread-review').remove(); // its diff refers to the now-removed file
       $form.find('.coa-drop').trigger('focus');
     });
 
@@ -306,6 +504,7 @@
       e.preventDefault();
       e.stopPropagation();
       $(this).removeClass('is-dragover');
+      if (scanning) { return; }
       var dt = e.originalEvent && e.originalEvent.dataTransfer;
       var file = dt && dt.files && dt.files[0];
       if (file && /^(image\/|application\/pdf)/.test(file.type)) {
@@ -333,6 +532,8 @@
 
     $root.on('click', '.coa-edit', function () {
       var rec = $(this).closest('tr').data('record');
+      $form.find('.coa-reread-review, .coa-scan-warn').remove();
+      $form.find('.coa-scan-status').text('');
       populateForm($form, rec);
       $('html, body').animate({ scrollTop: $form.offset().top - 60 }, 200);
     });

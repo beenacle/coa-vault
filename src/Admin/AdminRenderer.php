@@ -120,6 +120,10 @@ final class AdminRenderer
                         <button type="button" class="button coa-pick-media">' . esc_html__('Media Library', 'coa-vault') . '</button>
                     </p>
                     <span class="description">' . esc_html__('Reads the QR code and fields for you and attaches the file. Optional — you can also just type the details below.', 'coa-vault') . '</span>
+                    <div class="coa-drop-loading" aria-hidden="true">
+                        <span class="spinner is-active"></span>
+                        <span class="coa-drop-loading-text">' . esc_html__('Reading certificate…', 'coa-vault') . '</span>
+                    </div>
                 </div>
                 <div class="coa-media-set" hidden>
                     <span class="coa-thumb" aria-hidden="true"></span>
@@ -127,6 +131,7 @@ final class AdminRenderer
                         <strong class="coa-f-filename"></strong>
                         <span class="coa-media-sub"></span>
                         <span class="coa-media-actions">
+                            <button type="button" class="button-link coa-reread" title="' . esc_attr__('Read the figures off this file again with AI and review the changes', 'coa-vault') . '">' . esc_html__('Re-read data', 'coa-vault') . '</button>
                             <button type="button" class="button-link coa-replace">' . esc_html__('Replace', 'coa-vault') . '</button>
                             <button type="button" class="button-link coa-remove-media">' . esc_html__('Remove', 'coa-vault') . '</button>
                         </span>

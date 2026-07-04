@@ -39,17 +39,37 @@ final class ListTable extends \WP_List_Table
         ];
     }
 
+    /**
+     * Columns the user can sort by. Each maps to a whitelisted orderby key handled in
+     * CoaRepository::query(); the value's bool is the initial sort direction.
+     *
+     * @return array<string,array{0:string,1:bool}>
+     */
+    public function get_sortable_columns(): array
+    {
+        return [
+            'product' => ['product', false],
+            'lab'     => ['lab', false],
+            'date'    => ['date', true],
+            'purity'  => ['purity', false],
+        ];
+    }
+
     public function prepare_items(): void
     {
         $per_page = 30;
         $page     = $this->get_pagenum();
-        $lab      = isset($_REQUEST['lab']) ? sanitize_text_field((string) wp_unslash($_REQUEST['lab'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only list sort/filter via GET.
+        $lab      = isset($_REQUEST['lab']) ? sanitize_text_field((string) wp_unslash($_REQUEST['lab'])) : '';
+        $orderby  = isset($_REQUEST['orderby']) ? sanitize_key((string) wp_unslash($_REQUEST['orderby'])) : '';
+        $order    = isset($_REQUEST['order']) ? sanitize_key((string) wp_unslash($_REQUEST['order'])) : '';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-        $filters = ['lab' => $lab];
+        $filters = ['lab' => $lab, 'orderby' => $orderby, 'order' => $order];
         $total   = $this->records->count($filters, false);
         $items   = $this->records->query($filters + ['page' => $page, 'per_page' => $per_page], false);
 
-        $this->_column_headers = [$this->get_columns(), [], []];
+        $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
         $this->items           = $items;
 
         $this->set_pagination_args([

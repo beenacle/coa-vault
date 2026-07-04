@@ -70,10 +70,13 @@ final class ScanController
         $mime  = (string) get_post_mime_type($attachment_id);
         $fields = $this->read_fields($attachment_id, $mime);
 
-        // QR is decoded in the browser; the verify link is the highest-confidence,
-        // zero-AI signal and pins the lab via its host.
+        // The verify link can come from a QR (decoded in the browser) or the AI read of
+        // the printed text. A COA often carries MORE than one QR/link — e.g. a PubChem
+        // compound link beside the lab's verification URL — so prefer a candidate that
+        // resolves to a known testing lab and drop obvious non-verify links, rather than
+        // blindly trusting whichever QR happened to decode first.
         $qr_url = isset($_POST['qr_url']) ? esc_url_raw((string) wp_unslash($_POST['qr_url'])) : ''; // phpcs:ignore WordPress.Security
-        $verify = $qr_url !== '' ? $qr_url : esc_url_raw((string) ($fields['verify_url'] ?? ''));
+        $verify = self::best_verify_url([$qr_url, esc_url_raw((string) ($fields['verify_url'] ?? ''))]);
 
         $lab_from_url = Normalize::lab_from_url($verify);
         $lab          = $lab_from_url['slug'] !== '' ? $lab_from_url : Normalize::lab((string) ($fields['lab'] ?? ''));
@@ -99,7 +102,10 @@ final class ScanController
             }
             $name  = sanitize_text_field((string) ($c['name'] ?? ''));
             $value = sanitize_text_field((string) ($c['value'] ?? ''));
-            $unit  = sanitize_text_field((string) ($c['unit'] ?? ''));
+            // Canonicalize the unit the same way the save path does (RecordInput), so a
+            // re-read's "percent"/"Mg" compares equal to a saved "%"/"mg" and doesn't show
+            // a phantom characteristics change (and the prefill matches what a save stores).
+            $unit  = Normalize::unit(sanitize_text_field((string) ($c['unit'] ?? '')));
             if ($name === '' && $value === '') {
                 continue;
             }
@@ -165,10 +171,27 @@ final class ScanController
             'characteristics' => $chars,
         ];
 
+        // A single file with more than one certificate (e.g. two size variants) is read
+        // as just its FIRST certificate — warn rather than silently merge the rest.
+        $cert_count = (int) ($fields['certificate_count'] ?? 1);
+        $warning    = $cert_count > 1
+            /* translators: %d: number of certificates found in the file */
+            ? sprintf(
+                _n(
+                    'This file holds %d certificate — only the first was read. Save it, then add the other by dropping the file again and setting its size and batch.',
+                    'This file holds %d certificates — only the first was read. Save it, then add the other(s) by dropping the file again and setting each one’s size and batch.',
+                    $cert_count,
+                    'coa-vault'
+                ),
+                $cert_count
+            )
+            : '';
+
         wp_send_json_success([
             'prefill' => $prefill,
             'ai_used' => $fields !== [],
             'peptide' => sanitize_text_field((string) ($fields['peptide'] ?? '')),
+            'warning' => $warning,
         ]);
     }
 
@@ -233,6 +256,49 @@ final class ScanController
             }
         }
         return array_values($out);
+    }
+
+    /**
+     * Choose the best verification link from the candidates (a decoded QR and the
+     * AI-read printed URL). Certificates often print extra links — most commonly a
+     * PubChem / compound-reference URL — so prefer a candidate that resolves to a known
+     * testing lab, drop clear non-verification links, and return '' when none qualifies.
+     *
+     * @param string[] $candidates
+     */
+    private static function best_verify_url(array $candidates): string
+    {
+        $clean = [];
+        foreach ($candidates as $url) {
+            $url = trim((string) $url);
+            if ($url !== '' && !self::is_reference_url($url)) {
+                $clean[] = $url;
+            }
+        }
+        if ($clean === []) {
+            return '';
+        }
+        foreach ($clean as $url) {
+            if (Normalize::lab_from_url($url)['slug'] !== '') {
+                return $url; // a known lab's domain — highest confidence
+            }
+        }
+        return $clean[0];
+    }
+
+    /** A chemical/compound reference link (PubChem etc.) — never a COA verification URL. */
+    private static function is_reference_url(string $url): bool
+    {
+        $host = strtolower((string) wp_parse_url($url, PHP_URL_HOST));
+        if ($host === '') {
+            return true;
+        }
+        foreach (['pubchem.ncbi.nlm.nih.gov', 'ncbi.nlm.nih.gov', 'wikipedia.org', 'chemspider.com', 'drugbank.com', 'drugbank.ca', 'sigmaaldrich.com', 'guidetopharmacology.org', 'commonchemistry.cas.org'] as $ref) {
+            if ($host === $ref || str_ends_with($host, '.' . $ref)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

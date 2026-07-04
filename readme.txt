@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.2
+Stable tag: 0.2.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -98,6 +98,21 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.2.3 =
+* New: "Re-read data" on an attached certificate in the product COA editor — runs the AI reader over the file
+  again and shows a review/diff of the figures (batch, lab, date, purity, mass) that differ from what's saved,
+  so you can backfill a blank or fix a wrong value without retyping. You tick what to apply; nothing changes
+  otherwise, and it never touches the size, file or verify link. Needs an Anthropic key (off without one).
+* New: the catalog-wide "All COAs" screen is now sortable by Product, Lab, Date and Purity.
+* New: smarter scan / import — prefers the lab's real verification link and ignores compound-
+  reference links (PubChem, NCBI, Wikipedia, etc.); a file holding more than one certificate is
+  flagged with a warning instead of silently reading only the first.
+* New: in-box scan progress — the upload zone shows a native spinner and locks during a read, so a
+  second click or drop can't fire a duplicate import.
+* Change: expanded, curated built-in lab suggestions (Janoshik, Chromate, Krause, BT Labs,
+  TrustPointe, Freedom Diagnostics, MZ Biolabs, AccuMark) with better host inference; any other lab
+  still works as free text.
 
 = 0.2.2 =
 * New: a PDF certificate shows a "View full report (PDF)" link beneath its preview, so a multi-page
