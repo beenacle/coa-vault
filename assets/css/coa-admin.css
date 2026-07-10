@@ -9,7 +9,6 @@
 .coa-char-row { display: flex; gap: .5em; align-items: center; margin: .25em 0; }
 .coa-f-report-row { display: flex; gap: 1em; align-items: center; flex-wrap: wrap; }
 .coa-f-filename { font-size: .85em; color: #555; }
-.coa-cli { background: #1e1e1e; color: #e6e6e6; padding: 1em; border-radius: 6px; overflow:auto; }
 
 /* Unified certificate media zone (drop / upload / library) + attached-file card. */
 .coa-media { margin: .5em 0 1em; }
@@ -76,3 +75,23 @@ details.coa-advanced > summary { cursor: pointer; color: var(--wp-admin-theme-co
     .coa-drop { padding: 1.25em .75em; }
     .coa-media-actions .button-link { display: inline-block; min-height: 40px; line-height: 40px; padding: 0 .25em; margin-right: 1em; }
 }
+
+/* All-COAs bulk "Read data with AI" backfill: progress + review panel above the table. */
+.coa-backfill-panel { margin: 1em 0; padding: .8em 1em; background: #fff; border: 1px solid #dcdcde; border-left: 3px solid var(--wp-admin-theme-color, #2271b1); border-radius: 2px; }
+.coa-backfill-panel .coa-bf-head { margin: .1em 0 .5em; font-weight: 600; }
+.coa-backfill-panel progress { width: 100%; max-width: 480px; height: 14px; }
+.coa-bf-current { margin: .2em 0; color: #646970; }
+.coa-bf-scroll { overflow: auto; max-height: 60vh; margin: .5em 0; }
+.coa-bf-table td, .coa-bf-table th { padding: .45em .8em; vertical-align: top; }
+.coa-bf-table label { display: inline; margin: 0; }
+.coa-bf-table input[type="checkbox"] { min-width: 0; width: auto; margin: 0 .35em 0 0; }
+.coa-bf-title { font-weight: 600; }
+.coa-bf-new { color: #1e5e1e; font-weight: 600; }
+.coa-bf-cur { color: #8c8f94; }
+.coa-bf-warn { color: #674e00; }
+.coa-bf-done { font-weight: 600; color: #1e5e1e; }
+.coa-bf-cancelled { color: #674e00; font-weight: 600; }
+
+/* The 8-column batches table gets no core responsive treatment inside a metabox —
+   let it scroll sideways on narrow screens instead of crushing the columns. */
+.coa-admin-list { overflow-x: auto; }

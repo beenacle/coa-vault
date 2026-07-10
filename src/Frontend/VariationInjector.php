@@ -20,25 +20,63 @@ final class VariationInjector
     }
 
     /**
-     * @param array<string,mixed> $data
+     * No type-hints on purpose: other plugins may legitimately return false from
+     * this filter to hide a variation (core array_filters the results), and at
+     * priority 100 we receive that filtered value — a hinted signature would fatal.
+     *
+     * @param array<string,mixed>|false $data
+     * @param mixed $product
+     * @param mixed $variation
+     * @return array<string,mixed>|false
      */
-    public function inject(array $data, \WC_Product $product, \WC_Product $variation): array
+    public function inject($data, $product, $variation)
     {
+        if (!is_array($data) || !$variation instanceof \WC_Product) {
+            return $data;
+        }
         $data['coa'] = ['size' => $this->size_token_for($variation)];
         return $data;
     }
 
+    /**
+     * Derive the size token from the variation's attributes without guessing:
+     * an attribute NAMED like a size (size/strength/dose/weight) is trusted fully
+     * (so a bare "5" still means 5mg, matching how sizes are stored), while any
+     * other attribute only counts when its value carries an explicit unit —
+     * otherwise "Quantity: 10 vials" would tokenize to 10mg and bind the wrong
+     * certificate. No match → '' → the COA falls back to product level, which is
+     * always safe.
+     */
     private function size_token_for(\WC_Product $variation): string
     {
-        foreach ($variation->get_attributes() as $value) {
-            if ($value === '' || $value === null) {
+        $attributes = $variation->get_attributes();
+
+        foreach ($attributes as $name => $value) {
+            if (!is_string($value) || $value === '') {
                 continue;
             }
-            $token = Normalize::size_token((string) $value);
+            if (!preg_match('/size|strength|dos(e|age)|weight|mg/i', (string) $name)) {
+                continue;
+            }
+            $token = Normalize::size_token($value);
             if ($token !== '' && preg_match('/\d/', $token)) {
                 return $token;
             }
         }
+
+        foreach ($attributes as $value) {
+            if (!is_string($value) || $value === '') {
+                continue;
+            }
+            if (!preg_match('/\d\s*-?\s*(mcg|mg|kg|g|iu|ml|kit)\b/i', $value)) {
+                continue;
+            }
+            $token = Normalize::size_token($value);
+            if ($token !== '') {
+                return $token;
+            }
+        }
+
         return '';
     }
 }

@@ -17,21 +17,52 @@ final class RenderService
     {
     }
 
-    /** Initial server render for a product page (product-level COAs; JS swaps per variation). */
+    /** Initial server render for a product page (all the product's COAs; JS narrows per variation). */
     public function render_for_product(int $product_id): string
     {
         // Mark that a COA panel was placed this request, so the opt-out auto-injector
         // won't emit a duplicate when a shortcode/block already rendered one.
         do_action('coa_vault_rendered');
+        self::enqueue_assets();
 
-        // Editors may preview drafts; the public only sees published-product COAs.
-        $records = $this->records->resolve($product_id, null, null, false, !current_user_can('edit_products'));
+        // ALL of the product's records, not just product-level ones: a variable
+        // product whose COAs are all size-bound would otherwise first paint (and be
+        // indexed) as "no certificates available". Draft gating is the repository
+        // default (public sees published only; editors may preview drafts).
+        // aria-live: the JS swaps this wrap's content on variation change.
+        $records = $this->records->find_by_product($product_id);
         $inner   = $this->render_records($records);
         return sprintf(
-            '<div class="coa-vault-wrap" data-product-id="%d">%s</div>',
+            '<div class="coa-vault-wrap" data-product-id="%d" aria-live="polite">%s</div>',
             $product_id,
             $inner
         );
+    }
+
+    /**
+     * The product a shortcode/block placed without an explicit id should render:
+     * the loop product, else the queried single product. Shared so the two can't
+     * drift (and so the int-cast on get_the_ID()'s possible false lives in ONE place).
+     */
+    public function context_product_id(): int
+    {
+        global $product;
+        if ($product instanceof \WC_Product) {
+            return $product->get_id();
+        }
+        return is_singular('product') ? (int) get_the_ID() : 0;
+    }
+
+    /**
+     * Enqueue the storefront style/script from inside the render, so a panel
+     * placed somewhere placement-detection can't see (a page-builder widget, a
+     * template part) still gets its assets. The handles are registered on
+     * `wp_enqueue_scripts`; late style enqueues print in the footer (WP 5.5+).
+     */
+    private static function enqueue_assets(): void
+    {
+        wp_enqueue_style('coa-vault-frontend');
+        wp_enqueue_script('coa-vault-frontend');
     }
 
     /**
@@ -76,7 +107,8 @@ final class RenderService
             $summary = '<summary class="coa-vault-archive__summary">'
                 . '<span class="coa-vault-archive__name">' . esc_html($title) . '</span>'
                 . '<span class="coa-vault-archive__meta">'
-                . esc_html(sprintf(_n('%d batch', '%d batches', $count, 'coa-vault'), $count))
+                /* translators: %s: number of COA batches for this product */
+                . esc_html(sprintf(_n('%s batch', '%s batches', $count, 'coa-vault'), number_format_i18n($count)))
                 . '</span></summary>';
 
             $body = '';
@@ -134,6 +166,9 @@ final class RenderService
             if (in_array($c['name'], ['purity', 'mass'], true)) {
                 continue; // already shown via the hot columns
             }
+            if ($c['value'] === null) {
+                continue; // no value to show — would render a dangling unit
+            }
             $val     = is_float($c['value']) ? self::num($c['value']) : (string) $c['value'];
             $facts[] = [($c['label'] ?: $c['name']), trim($val . ' ' . $c['unit'])];
         }
@@ -178,7 +213,8 @@ final class RenderService
         $verify  = (string) ($report['verify_url'] ?? '');
         $alt     = esc_attr__('Certificate of Analysis', 'coa-vault');
 
-        $parts = [];
+        $parts    = [];
+        $rendered = false;
 
         if ($file_id > 0) {
             // Native: image OR PDF page-1 preview, with srcset, handled by WordPress.
@@ -189,7 +225,8 @@ final class RenderService
             ]);
             $href = wp_get_attachment_url($file_id) ?: $url;
             if ($img !== '' && $href !== '') {
-                $parts[] = sprintf(
+                $rendered = true;
+                $parts[]  = sprintf(
                     '<figure class="coa-vault-report"><a href="%s" target="_blank" rel="noopener">%s</a></figure>',
                     esc_url($href),
                     $img
@@ -204,7 +241,11 @@ final class RenderService
                     );
                 }
             }
-        } elseif ($url !== '') {
+            // A deleted/missing attachment falls through to the URL branch below,
+            // so a record migrated with both file_id and url still shows something.
+        }
+
+        if (!$rendered && $url !== '') {
             // External URL with no local attachment: inline images, link anything else.
             if (preg_match('#\.(png|jpe?g|gif|webp|avif|svg)(\?|\#|$)#i', $url)) {
                 $parts[] = sprintf(

@@ -7,6 +7,7 @@ namespace CoaVault;
 use CoaVault\Admin\AdminMenu;
 use CoaVault\Admin\AdminRenderer;
 use CoaVault\Admin\Assets as AdminAssets;
+use CoaVault\Admin\BackfillController;
 use CoaVault\Admin\BatchController;
 use CoaVault\Admin\ProductCoverage;
 use CoaVault\Admin\ProductPanel;
@@ -100,6 +101,7 @@ final class Plugin
         (new ProductPanel($admin_renderer))->register();
         (new BatchController($this->records(), $admin_renderer))->register();
         (new ScanController())->register();
+        (new BackfillController($this->records()))->register();
         (new AdminMenu($this->records()))->register();
         (new ProductCoverage($this->records()))->register();
         (new Settings())->register();

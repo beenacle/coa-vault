@@ -53,7 +53,10 @@ final class ClaudeClient
 
         $body = [
             'model'      => self::model(),
-            'max_tokens' => 1024,
+            // Headroom for characteristic-heavy blend COAs: at 1024 a dense report
+            // could stop on max_tokens, truncating the JSON into a silent "read
+            // nothing" (json_decode null → []).
+            'max_tokens' => 4096,
             'messages'   => [[
                 'role'    => 'user',
                 'content' => [$media, ['type' => 'text', 'text' => self::PROMPT]],
@@ -76,7 +79,9 @@ final class ClaudeClient
         }
 
         $data = json_decode(wp_remote_retrieve_body($response), true);
-        if (!is_array($data) || ($data['stop_reason'] ?? '') === 'refusal') {
+        // Refusal or a max_tokens cutoff both mean "no trustworthy read" — a
+        // truncated structured output is not guaranteed to be valid JSON anyway.
+        if (!is_array($data) || in_array($data['stop_reason'] ?? '', ['refusal', 'max_tokens'], true)) {
             return [];
         }
 

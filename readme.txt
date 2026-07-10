@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.3
+Stable tag: 0.2.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -98,6 +98,26 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.2.4 =
+* New: bulk "Read data with AI" on the All COAs screen — select records whose attached certificate
+  still has empty figures, and each file is read in turn with progress, ending in ONE review table
+  of proposed values you tick and apply. Strictly fill-blanks-only (re-checked server-side), so a
+  bad read can never overwrite good data. A per-row "Read data" link runs the same flow for one
+  record; a notice counts records still missing figures. Needs an Anthropic key.
+* Change: a "Purity"/"Mass" repeater row (in the column's own unit) now folds into the headline
+  Purity/Mass field on save instead of being stored twice.
+* Fix: storefront variation swap now survives full-page caches (stale-token recovery) and aborts
+  stale requests on fast size-switching.
+* Fix: product editor — failed saves/deletes show the real error instead of failing silently;
+  Replace updates the record being edited instead of creating a duplicate (with a visible
+  "Editing batch #N" line); Remove actually detaches the file; double-click can't save twice;
+  editing no longer discards stored textual purity/mass characteristics.
+* Fix: hand-edited records are owned by the store — a migration re-run no longer reverts or hides
+  admin corrections.
+* Fix: size-specific COAs show on first load of a variable product; deleted media falls back to the
+  report URL; sizes sort numerically; REST PATCH no longer blanks omitted fields; pagination
+  headers; correct "Latest" flag on filtered reads; dense certificates no longer read as empty.
 
 = 0.2.3 =
 * New: "Re-read data" on an attached certificate in the product COA editor — runs the AI reader over the file

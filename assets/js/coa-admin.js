@@ -60,6 +60,9 @@
 
   function clearMediaSet($form) {
     $form.find('.coa-f-fileid').val('');
+    // Clear the report URL too: Report::resolve() reverse-maps a lone URL back to
+    // the attachment id on save, which would silently resurrect a removed file.
+    $form.find('.coa-f-url').val('');
     $form.find('.coa-thumb').empty();
     $form.find('.coa-f-filename').text('');
     $form.find('.coa-media-sub').text('');
@@ -67,8 +70,18 @@
     $form.find('.coa-drop').removeAttr('hidden');
   }
 
+  // Visible add-vs-edit line under the form heading, derived from the hidden id so
+  // every path (edit, scan merge, reset) reflects the mode that Save will act in.
+  function updateModeIndicator($form) {
+    var $el = $form.find('.coa-form-mode');
+    if (!$el.length) { return; }
+    var id = $form.find('.coa-f-id').val();
+    $el.text(id ? coaAdmin.i18n.editingBatch.replace('%s', id) : '');
+  }
+
   function resetForm($form) {
     $form.find('.coa-f-id').val('');
+    updateModeIndicator($form);
     $form.find('input[type="text"], input[type="number"], input[type="url"], input[type="date"]').val('');
     $form.find('.coa-f-lab').val('');
     $form.find('.coa-f-size-select').val('');
@@ -87,16 +100,24 @@
       if (merge && (v == null || v === '')) { return; }
       $el.val(v == null ? '' : v);
     }
-    // The id is never merged: a scan pre-fill (id '') must start a NEW record even if
-    // the form was mid-edit, or it would silently overwrite the record being edited.
-    $form.find('.coa-f-id').val(rec.id != null ? rec.id : '');
+    // The id survives a merge: a scan pre-fill landing while a record is being
+    // edited (Replace / Media-Library pick on that record) belongs to THAT record —
+    // blanking it silently flipped the form to add-mode and saved a duplicate.
+    // Only a non-merge populate (loading a record, or the empty prefill of a fresh
+    // add) sets the id outright.
+    if (!merge) {
+      $form.find('.coa-f-id').val(rec.id != null ? rec.id : '');
+    }
+    updateModeIndicator($form);
 
     // "Applies to": select the record's size; add a custom/legacy token if missing.
     var $size = $form.find('.coa-f-size-select');
     var tok = rec.size_token || '';
     if (tok) {
       if (!$size.find('option[value="' + tok + '"]').length) {
-        $size.append($('<option>').val(tok).text(tok));
+        // Carry the variation binding so re-selecting this option keeps it.
+        $size.append($('<option>').val(tok).text(tok)
+          .attr('data-variation-id', rec.variation_id != null ? rec.variation_id : ''));
       }
       $size.val(tok);
       $form.find('.coa-f-variation').val(rec.variation_id != null ? rec.variation_id : '');
@@ -111,14 +132,21 @@
     setIf($form.find('.coa-f-purity'), rec.purity_pct);
     setIf($form.find('.coa-f-mass'), rec.mass_mg);
 
-    // The report state always reflects the latest attach / the edited record.
+    // The attached file reflects the latest attach; URL + verify go through setIf so
+    // a merge (scan that read nothing for them) can't blank a hand-typed value.
     var rep = rec.report || {};
     $form.find('.coa-f-fileid').val(rep.file_id ? rep.file_id : '');
-    $form.find('.coa-f-url').val(rep.url || '');
-    $form.find('.coa-f-verify').val(rep.verify_url || '');
+    setIf($form.find('.coa-f-url'), rep.url);
+    setIf($form.find('.coa-f-verify'), rep.verify_url);
 
-    // Characteristics: replace on edit; on a scan, replace only when the scan found some.
-    var chars = (rec.characteristics || []).filter(function (c) { return c.name !== 'purity' && c.name !== 'mass'; });
+    // Characteristics: an EDIT loads every stored row (a legacy textual/off-unit
+    // purity or mass row must survive the round-trip — dropping it here deleted it
+    // on save); a scan MERGE hides purity/mass rows (they fold into the headline
+    // fields) and replaces the repeater only when the scan found some.
+    var chars = rec.characteristics || [];
+    if (merge) {
+      chars = chars.filter(function (c) { return c.name !== 'purity' && c.name !== 'mass'; });
+    }
     if (!merge || chars.length) {
       var $rows = $form.find('.coa-f-chars-rows').empty();
       chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit)); });
@@ -218,7 +246,15 @@
     function setBusy(on) {
       scanning = on;
       $form.toggleClass('is-scanning', on);
-      $form.find('.coa-upload, .coa-replace, .coa-pick-media, .coa-reread').prop('disabled', on);
+      // Save/Cancel lock too: saving mid-scan would store the record without the
+      // file, then the late scan response re-fills a form the admin thinks is done.
+      $form.find('.coa-upload, .coa-replace, .coa-pick-media, .coa-reread, .coa-save, .coa-cancel')
+        .prop('disabled', on);
+    }
+
+    // Server-side error messages (400/403 responses) land in jQuery's fail path.
+    function failMessage(xhr, fallback) {
+      return (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) || fallback;
     }
 
     function openPicker() {
@@ -246,6 +282,17 @@
       }
     }
 
+    // Pin the record the scan was started against: if the admin switches to editing
+    // a different record while the (multi-second) read is in flight, the stale
+    // response must not merge this file's figures into that other record.
+    function pinnedApplyScan() {
+      var editId = $form.find('.coa-f-id').val();
+      return function (res) {
+        if ($form.find('.coa-f-id').val() !== editId) { return; }
+        applyScan(res);
+      };
+    }
+
     // Upload / drop a local file: read the QR + fields, attach it, and pre-fill.
     function setReportFromLocalFile(file) {
       if (!file || scanning) { return; }
@@ -253,6 +300,7 @@
       // Announced to screen readers (aria-live); hidden visually during the scan since the
       // in-box spinner is the visual cue (CSS .is-scanning).
       var $status = $form.find('.coa-scan-status').text(coaAdmin.i18n.scanning);
+      var onDone = pinnedApplyScan();
       setBusy(true);
       processCertificate(file, function (r) {
         var fd = new FormData();
@@ -262,8 +310,8 @@
         fd.append('report', r.upload, r.name);
         if (r.qr && /^https?:\/\//i.test(r.qr)) { fd.append('qr_url', r.qr); }
         $.ajax({ url: coaAdmin.ajaxurl, method: 'POST', data: fd, processData: false, contentType: false })
-          .done(applyScan)
-          .fail(function () { $status.text(coaAdmin.i18n.scanFail); })
+          .done(onDone)
+          .fail(function (xhr) { $status.text(failMessage(xhr, coaAdmin.i18n.scanFail)); })
           .always(function () { setBusy(false); });
       });
     }
@@ -284,8 +332,8 @@
         product_id: $form.data('product-id'),
         attachment_id: id
       })
-        .done(onDone || applyScan)
-        .fail(function () { $form.find('.coa-scan-status').text(coaAdmin.i18n.scanFail); })
+        .done(onDone || pinnedApplyScan())
+        .fail(function (xhr) { $form.find('.coa-scan-status').text(failMessage(xhr, coaAdmin.i18n.scanFail)); })
         .always(function () { setBusy(false); });
     }
 
@@ -484,7 +532,9 @@
       clearMediaSet($form);
       $form.find('.coa-scan-status').text('');
       $form.find('.coa-reread-review').remove(); // its diff refers to the now-removed file
-      $form.find('.coa-drop').trigger('focus');
+      // The Remove button just disappeared with the card — land focus on a real
+      // control (the drop zone is an unfocusable div).
+      $form.find('.coa-upload').trigger('focus');
     });
 
     // Drag and drop onto the zone. The relatedTarget guard avoids highlight flicker
@@ -543,6 +593,10 @@
     });
 
     $root.on('click', '.coa-save', function () {
+      var $btn = $(this);
+      if ($btn.prop('disabled')) { return; }
+      // In-flight lock: a double-click on a slow connection saved two records.
+      $btn.prop('disabled', true);
       var $spin = $form.find('.spinner').addClass('is-active');
       $.post(coaAdmin.ajaxurl, {
         action: 'coa_save_batch',
@@ -550,28 +604,30 @@
         coa: collect($form)
       })
         .done(function (res) {
-          if (res && res.success) {
-            $root.find('.coa-admin-list').html(res.data.list_html);
-            resetForm($form);
-          } else {
-            window.alert((res && res.data && res.data.message) || 'Save failed');
-          }
+          $root.find('.coa-admin-list').html(res.data.list_html);
+          resetForm($form);
         })
-        .always(function () { $spin.removeClass('is-active'); });
+        // Server errors respond 4xx (nonce expiry, validation) — jQuery routes
+        // them here, so without this handler a failed save was completely silent.
+        .fail(function (xhr) { window.alert(failMessage(xhr, coaAdmin.i18n.saveFail)); })
+        .always(function () {
+          $spin.removeClass('is-active');
+          $btn.prop('disabled', false);
+        });
     });
 
     $root.on('click', '.coa-delete', function () {
-      if (!window.confirm('Delete this COA batch?')) { return; }
+      if (!window.confirm(coaAdmin.i18n.confirmDelete)) { return; }
       $.post(coaAdmin.ajaxurl, {
         action: 'coa_delete_batch',
         nonce: coaAdmin.nonce,
         id: $(this).data('id'),
         product_id: $form.data('product-id')
-      }).done(function (res) {
-        if (res && res.success) {
+      })
+        .done(function (res) {
           $root.find('.coa-admin-list').html(res.data.list_html);
-        }
-      });
+        })
+        .fail(function (xhr) { window.alert(failMessage(xhr, coaAdmin.i18n.deleteFail)); });
     });
   });
 })(jQuery);

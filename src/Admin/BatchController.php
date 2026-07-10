@@ -38,11 +38,25 @@ final class BatchController
             wp_send_json_error(['message' => __('Missing product.', 'coa-vault')], 400);
         }
 
+        // A completely empty submit (stray click on the blank form) would store an
+        // all-"—" row; require at least one substantive value.
+        $has_content = $columns['batch'] !== '' || $columns['lab_label'] !== ''
+            || $columns['analysis_date'] !== null || $columns['purity_pct'] !== null
+            || $columns['mass_mg'] !== null || $columns['report_file_id'] !== null
+            || $columns['report_url'] !== '' || $columns['verify_url'] !== '' || $chars !== [];
+        if (!$has_content) {
+            wp_send_json_error(['message' => __('Nothing to save — add at least one value or a certificate.', 'coa-vault')], 400);
+        }
+
         $id = isset($input['id']) && $input['id'] !== '' ? (int) $input['id'] : null;
         if ($id !== null) {
             unset($columns['product_id']); // immutable on edit
         }
-        $this->records->save_from_admin($id, $columns, $chars);
+        $saved = $this->records->save_from_admin($id, $columns, $chars);
+        if ($saved === 0) {
+            // Stale edit: the record was deleted elsewhere (another tab/user).
+            wp_send_json_error(['message' => __('That COA no longer exists — it may have been deleted. Reload the page.', 'coa-vault')], 409);
+        }
 
         wp_send_json_success([
             'list_html' => $this->renderer->render_list((int) $input['product_id']),

@@ -285,7 +285,10 @@ final class GitHubUpdater
         $html = preg_replace('/^#{1,6}\s*(.+)$/m', '<h4>$1</h4>', $html) ?? $html;
         $html = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $html) ?? $html;
         $html = preg_replace('/^\s*[-*]\s+(.+)$/m', '<li>$1</li>', $html) ?? $html;
-        $html = preg_replace('/(?:<li>.*<\/li>\s*)+/s', '<ul>$0</ul>', $html) ?? $html;
+        // Line-scoped (no /s): a greedy dot-all span would swallow everything
+        // between the first and last <li> of the document — including headings
+        // separating two lists — into one <ul>.
+        $html = preg_replace('/(?:<li>[^\n]*<\/li>\n?)+/', '<ul>$0</ul>', $html) ?? $html;
 
         return wpautop($html);
     }

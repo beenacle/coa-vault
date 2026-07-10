@@ -53,6 +53,10 @@ final class AdminMenu
         $table->prepare_items();
 
         echo '<div class="wrap"><h1>' . esc_html__('Certificates of Analysis', 'coa-vault') . '</h1>';
+        $this->render_backfill_notice();
+        // The bulk "Read data with AI" flow (coa-list.js) renders its progress +
+        // review panel here, above the table.
+        echo '<div id="coa-backfill-root"></div>';
         echo '<form method="get">';
         echo '<input type="hidden" name="page" value="coa-vault">';
         $current = isset($_GET['lab']) ? sanitize_text_field((string) wp_unslash($_GET['lab'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
@@ -71,5 +75,45 @@ final class AdminMenu
         echo '</select></label></p>';
         $table->display();
         echo '</form></div>';
+    }
+
+    /**
+     * Nudge toward the bulk backfill when records have a certificate attached but
+     * no figures (typical after a legacy migration, which only carried the file).
+     * Self-healing: once the data is filled the count drops and the notice goes.
+     */
+    private function render_backfill_notice(): void
+    {
+        $count = $this->records->count_backfillable();
+        if ($count === 0) {
+            return;
+        }
+
+        if (!Settings::ai_enabled()) {
+            printf(
+                '<div class="notice notice-warning inline"><p>%s</p></div>',
+                sprintf(
+                    /* translators: 1: number of COA records, 2: settings page URL */
+                    esc_html__('%1$d COAs have an attached report but missing figures. Add an Anthropic key in %2$s to read them with AI.', 'coa-vault'),
+                    (int) $count,
+                    '<a href="' . esc_url(admin_url('admin.php?page=coa-vault-settings')) . '">' . esc_html__('COA → Settings', 'coa-vault') . '</a>'
+                )
+            );
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-info inline"><p>%s</p></div>',
+            sprintf(
+                /* translators: %d: number of COA records */
+                esc_html(_n(
+                    '%d COA has an attached report but missing figures. Select it below and run the “Read data with AI” bulk action — you review every value before it is saved.',
+                    '%d COAs have an attached report but missing figures. Select them below and run the “Read data with AI” bulk action — you review every value before it is saved.',
+                    $count,
+                    'coa-vault'
+                )),
+                (int) $count
+            )
+        );
     }
 }

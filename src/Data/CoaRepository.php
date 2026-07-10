@@ -31,18 +31,36 @@ final class CoaRepository
         $row['source_present']   = 1;
         $row['migration_run_id'] = $migration_run_id;
 
-        $existing_id = (int) $wpdb->get_var(
-            $wpdb->prepare("SELECT id FROM {$records} WHERE source_hash = %s", $record->source_hash)
+        $existing = $wpdb->get_row(
+            $wpdb->prepare("SELECT id, source_type FROM {$records} WHERE source_hash = %s", $record->source_hash)
         );
 
-        if ($existing_id > 0) {
-            $wpdb->update($records, $row, ['id' => $existing_id]);
-            $coa_id = $existing_id;
+        if ($existing) {
+            // An admin-edited record has been taken over by the store (source_type
+            // flipped to 'manual' on edit) — a migration re-run must not silently
+            // revert the correction with stale source data.
+            if ((string) $existing->source_type === 'manual') {
+                return (int) $existing->id;
+            }
+            $coa_id = (int) $existing->id;
+            $wpdb->update($records, $row, ['id' => $coa_id]);
             $wpdb->delete($chars, ['coa_id' => $coa_id]);
         } else {
             $row['created_at'] = $now;
-            $wpdb->insert($records, $row);
-            $coa_id = (int) $wpdb->insert_id;
+            if ($wpdb->insert($records, $row) === false) {
+                // Most likely a lost race on the source_hash unique key (concurrent
+                // runs) — re-read the winner instead of orphaning characteristics
+                // under coa_id 0.
+                $coa_id = (int) $wpdb->get_var(
+                    $wpdb->prepare("SELECT id FROM {$records} WHERE source_hash = %s", $record->source_hash)
+                );
+                if ($coa_id === 0) {
+                    return 0; // genuine insert failure — nothing to attach chars to
+                }
+                $wpdb->delete($chars, ['coa_id' => $coa_id]);
+            } else {
+                $coa_id = (int) $wpdb->insert_id;
+            }
         }
 
         $position = 0;
@@ -74,7 +92,9 @@ final class CoaRepository
 
     /**
      * Tombstone records from a given source that were NOT touched by the latest run,
-     * so deletions at the source are detectable without destroying data.
+     * so deletions at the source are detectable without destroying data. Records an
+     * admin has taken over (source_type 'manual' — see upsert()/save_from_admin())
+     * are store-owned and never tombstoned by a migration.
      */
     public function tombstone_missing(string $source_site, int $migration_run_id): int
     {
@@ -83,7 +103,8 @@ final class CoaRepository
         return (int) $wpdb->query(
             $wpdb->prepare(
                 "UPDATE {$records} SET source_present = 0
-                 WHERE source_site = %s AND (migration_run_id <> %d OR migration_run_id IS NULL)",
+                 WHERE source_site = %s AND source_type <> 'manual'
+                 AND (migration_run_id <> %d OR migration_run_id IS NULL)",
                 $source_site,
                 $migration_run_id
             )
@@ -149,7 +170,8 @@ final class CoaRepository
         if ($only_present) {
             $sql .= ' AND source_present = 1';
         }
-        $sql .= ' ORDER BY size_token ASC, analysis_date DESC, id DESC';
+        // LENGTH-first keeps numeric tokens in numeric order (5mg before 10mg).
+        $sql .= ' ORDER BY LENGTH(size_token) ASC, size_token ASC, analysis_date DESC, id DESC';
         return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, $product_id)));
     }
 
@@ -206,7 +228,7 @@ final class CoaRepository
         if ($published_only && get_post_status((int) $row->product_id) !== 'publish') {
             return null;
         }
-        $h = $this->hydrate_many([$row]);
+        $h = $this->hydrate_many([$row], false); // single row ≠ its whole group
         return $h[0] ?? null;
     }
 
@@ -232,7 +254,9 @@ final class CoaRepository
         $sql = "SELECT t.* FROM {$t} t{$join} WHERE " . implode(' AND ', $where)
              . " {$order} LIMIT %d OFFSET %d";
 
-        return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, ...$params)));
+        // false: pagination/filters can split a (product, size) group across pages,
+        // so is_latest must be derived against the full groups, not this slice.
+        return $this->hydrate_many($wpdb->get_results($wpdb->prepare($sql, ...$params)), false);
     }
 
     /**
@@ -347,6 +371,28 @@ final class CoaRepository
         return $out;
     }
 
+    /**
+     * Live records with a certificate attached but at least one core figure missing
+     * (batch, lab, date or purity) — the population the bulk "Read data with AI"
+     * backfill exists for. Typical after a legacy migration that only carried files.
+     *
+     * Deliberately NARROWER than ListTable::is_backfillable() (which also counts a
+     * missing mass/verify-link/characteristics): the admin notice should nag about
+     * records with no core figures, not about every optional gap — so a row can
+     * still offer "Read data" after this count reaches zero. That is intentional.
+     */
+    public function count_backfillable(): int
+    {
+        global $wpdb;
+        $t = Schema::records_table();
+        // No user input — table name is from Schema, the rest is literal.
+        return (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$t}
+             WHERE source_present = 1 AND report_file_id IS NOT NULL AND report_file_id > 0
+             AND (batch = '' OR lab_label = '' OR analysis_date IS NULL OR purity_pct IS NULL)"
+        );
+    }
+
     /** Number of PUBLISHED products that have no live COA record (coverage gap). */
     public function count_products_missing_coa(): int
     {
@@ -391,6 +437,8 @@ final class CoaRepository
     /**
      * @param array<string,mixed> $columns
      * @param array<int,array<string,mixed>> $characteristics
+     * @return int The record id, or 0 when an edit targeted a record that no longer
+     *             exists (deleted in another tab) — callers should surface that.
      */
     public function save_from_admin(?int $id, array $columns, array $characteristics): int
     {
@@ -403,6 +451,15 @@ final class CoaRepository
         $columns['source_present'] = 1;
 
         if ($id) {
+            // The record must still exist — updating a stale id "succeeds" with 0
+            // rows and would then insert orphaned characteristics for it.
+            $exists = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM {$records} WHERE id = %d", $id));
+            if ($exists === 0) {
+                return 0;
+            }
+            // A hand-edit takes ownership: mark the record manual so a migration
+            // re-run (keyed on source_hash) won't revert the admin's correction.
+            $columns['source_type'] = 'manual';
             $wpdb->update($records, $columns, ['id' => $id]);
             $wpdb->delete($chars, ['coa_id' => $id]);
             $coa_id = $id;
@@ -431,6 +488,49 @@ final class CoaRepository
         return $coa_id;
     }
 
+    /**
+     * Partial update for the AI backfill: writes ONLY the given columns and only
+     * ADDS characteristics (the caller — BackfillController — has already verified
+     * each column is currently blank and that the record has no characteristics,
+     * and this never deletes anything), so a backfill can't clobber existing data.
+     *
+     * @param array<string,mixed> $columns Pre-normalized column => value.
+     * @param array<int,array<string,mixed>> $characteristics Rows shaped like save_from_admin()'s.
+     */
+    public function backfill(int $id, array $columns, array $characteristics = []): void
+    {
+        global $wpdb;
+
+        if ($columns !== []) {
+            $columns['updated_at'] = current_time('mysql', true);
+            $wpdb->update(Schema::records_table(), $columns, ['id' => $id]);
+        }
+
+        // Re-check emptiness at write time: two admins applying the same review
+        // concurrently must not double-insert the characteristic set (the column
+        // writes above are idempotent; this insert is the non-idempotent leg).
+        if ($characteristics !== []) {
+            $ct  = Schema::characteristics_table();
+            $has = (int) $wpdb->get_var($wpdb->prepare("SELECT 1 FROM {$ct} WHERE coa_id = %d LIMIT 1", $id));
+            if ($has === 1) {
+                return;
+            }
+        }
+
+        $position = 0;
+        foreach ($characteristics as $c) {
+            $wpdb->insert(Schema::characteristics_table(), [
+                'coa_id'     => $id,
+                'name_slug'  => (string) ($c['name_slug'] ?? 'unknown'),
+                'name_label' => (string) ($c['name_label'] ?? ''),
+                'value_num'  => $c['value_num'] ?? null,
+                'value_text' => (string) ($c['value_text'] ?? ''),
+                'unit'       => (string) ($c['unit'] ?? ''),
+                'position'   => $position++,
+            ]);
+        }
+    }
+
     public function delete(int $id): void
     {
         global $wpdb;
@@ -442,9 +542,14 @@ final class CoaRepository
 
     /**
      * @param array<int,object> $rows
+     * @param bool $complete_groups True when $rows contains every live record of each
+     *        (product, size) pair present (find_by_product/resolve/archive) — is_latest
+     *        can then be derived in memory. Paginated or filtered sets (query, find)
+     *        MUST pass false, or a record whose newer sibling fell outside the page /
+     *        filter would be wrongly flagged latest.
      * @return array<int,array<string,mixed>>
      */
-    private function hydrate_many(array $rows): array
+    private function hydrate_many(array $rows, bool $complete_groups = true): array
     {
         if (!$rows) {
             return [];
@@ -462,7 +567,26 @@ final class CoaRepository
             $by_coa[(int) $c->coa_id][] = $c;
         }
 
-        // Derive is_latest per (product_id, size_token): newest analysis_date, tie-break id.
+        $latest = $complete_groups ? self::latest_per_group($rows) : $this->latest_from_db($rows);
+
+        $out = [];
+        foreach ($rows as $r) {
+            $key       = $r->product_id . '|' . $r->size_token;
+            $is_latest = ($latest[$key] ?? 0) === (int) $r->id;
+            $out[]     = $this->shape($r, $by_coa[(int) $r->id] ?? [], $is_latest);
+        }
+        return $out;
+    }
+
+    /**
+     * Latest id per (product_id, size_token) among the given rows: newest
+     * analysis_date, tie-break highest id.
+     *
+     * @param array<int,object> $rows
+     * @return array<string,int> "product|size" => id
+     */
+    private static function latest_per_group(array $rows): array
+    {
         $best = [];
         foreach ($rows as $r) {
             $key = $r->product_id . '|' . $r->size_token;
@@ -471,14 +595,39 @@ final class CoaRepository
                 $best[$key] = ['d' => $d, 'id' => (int) $r->id];
             }
         }
+        return array_map(static fn (array $b): int => $b['id'], $best);
+    }
 
-        $out = [];
+    /**
+     * True latest per pair when the hydrated set may be missing group siblings
+     * (pagination/filters): one light query over ALL live rows of just those pairs.
+     *
+     * @param array<int,object> $rows
+     * @return array<string,int> "product|size" => id
+     */
+    private function latest_from_db(array $rows): array
+    {
+        global $wpdb;
+        $t = Schema::records_table();
+
+        $pairs = [];
         foreach ($rows as $r) {
-            $key       = $r->product_id . '|' . $r->size_token;
-            $is_latest = $best[$key]['id'] === (int) $r->id;
-            $out[]     = $this->shape($r, $by_coa[(int) $r->id] ?? [], $is_latest);
+            $pairs[$r->product_id . '|' . $r->size_token] = [(int) $r->product_id, (string) $r->size_token];
         }
-        return $out;
+        $where  = implode(' OR ', array_fill(0, count($pairs), '(product_id = %d AND size_token = %s)'));
+        $params = [];
+        foreach ($pairs as [$pid, $tok]) {
+            $params[] = $pid;
+            $params[] = $tok;
+        }
+
+        $all = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, product_id, size_token, analysis_date FROM {$t}
+             WHERE source_present = 1 AND ({$where})",
+            ...$params
+        ));
+
+        return self::latest_per_group($all);
     }
 
     /**

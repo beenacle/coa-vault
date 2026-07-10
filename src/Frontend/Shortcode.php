@@ -35,12 +35,7 @@ final class Shortcode
         $product_id = (int) $atts['product_id'];
 
         if ($product_id === 0) {
-            global $product;
-            if ($product instanceof \WC_Product) {
-                $product_id = $product->get_id();
-            } elseif (is_singular('product')) {
-                $product_id = get_the_ID();
-            }
+            $product_id = $this->renderer->context_product_id();
         }
         if ($product_id === 0) {
             return '';

@@ -48,6 +48,7 @@ function coa_vault_uninstall_site(): void
     delete_option('coa_vault_drop_data_on_uninstall');
     delete_option('coa_vault_frontend');
     delete_option('coa_vault_autoinject');
+    delete_option('coa_vault_display_mode');
 }
 
 if (is_multisite()) {

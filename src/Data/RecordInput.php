@@ -43,26 +43,28 @@ final class RecordInput
         $purity = null;
         $mass   = null;
         foreach ((array) ($in['characteristics'] ?? []) as $c) {
-            $name = (string) ($c['name'] ?? $c['name_label'] ?? '');
-            $val  = $c['value'] ?? $c['value_num'] ?? '';
-            if ($name === '' && (string) $val === '') {
+            $row = is_array($c) ? self::char_row($c) : null;
+            if ($row === null) {
                 continue;
             }
-            $num  = is_numeric($val) ? (float) $val : null;
-            $slug = Normalize::name_slug($name);
-            $chars[] = [
-                'name_slug'  => $slug,
-                'name_label' => sanitize_text_field($name),
-                'value_num'  => $num,
-                'value_text' => $num === null ? sanitize_text_field((string) $val) : '',
-                'unit'       => Normalize::unit((string) ($c['unit'] ?? '')),
-            ];
-            if ($slug === 'purity' && $num !== null) {
-                $purity = $num;
+
+            // A "Purity"/"Mass" repeater row IS the headline column — fold it into
+            // the column instead of also storing a duplicate characteristic (one
+            // fact, one home; the explicit purity_pct/mass_mg inputs below still
+            // win). Only numeric values in the column's own unit qualify: a textual
+            // "conforms" or a mass in another unit stays a characteristic row, so
+            // nothing is silently lost or mis-scaled into the column.
+            $fold = self::headline_fold($row);
+            if ($fold === 'purity') {
+                $purity = $row['value_num'];
+                continue;
             }
-            if ($slug === 'mass' && $num !== null) {
-                $mass = $num;
+            if ($fold === 'mass') {
+                $mass = $row['value_num'];
+                continue;
             }
+
+            $chars[] = $row;
         }
         if (isset($in['purity_pct']) && $in['purity_pct'] !== '') {
             $purity = (float) $in['purity_pct'];
@@ -98,5 +100,50 @@ final class RecordInput
         ];
 
         return [$columns, $chars];
+    }
+
+    /**
+     * Map ONE untrusted characteristic input ({name, value, unit}) to a sanitized
+     * repository row — the single normalization shared by the admin/REST save path
+     * and the bulk AI backfill, so they can't drift. Returns null for an empty row.
+     *
+     * @param array<string,mixed> $c
+     * @return array{name_slug:string,name_label:string,value_num:?float,value_text:string,unit:string}|null
+     */
+    public static function char_row(array $c): ?array
+    {
+        $name = sanitize_text_field((string) ($c['name'] ?? $c['name_label'] ?? ''));
+        $val  = (string) ($c['value'] ?? $c['value_num'] ?? '');
+        if ($name === '' && $val === '') {
+            return null;
+        }
+        $num = is_numeric($val) ? (float) $val : null;
+        return [
+            'name_slug'  => Normalize::name_slug($name),
+            'name_label' => $name,
+            'value_num'  => $num,
+            'value_text' => $num === null ? sanitize_text_field($val) : '',
+            'unit'       => Normalize::unit(sanitize_text_field((string) ($c['unit'] ?? ''))),
+        ];
+    }
+
+    /**
+     * Should this characteristic row fold into a headline column instead of being
+     * stored? 'purity'|'mass' when it is numeric and in the column's own unit
+     * (%/mg/none); null when it is a genuine characteristic.
+     */
+    public static function headline_fold(array $row): ?string
+    {
+        if ($row['value_num'] === null) {
+            return null;
+        }
+        $unit = (string) $row['unit'];
+        if ($row['name_slug'] === 'purity' && ($unit === '' || $unit === '%')) {
+            return 'purity';
+        }
+        if ($row['name_slug'] === 'mass' && ($unit === '' || $unit === 'mg')) {
+            return 'mass';
+        }
+        return null;
     }
 }

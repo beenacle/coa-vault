@@ -174,6 +174,9 @@ final class Settings
     {
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__('COA Settings', 'coa-vault') . '</h1>';
+        // Custom top-level pages don't get core's options-head.php, so "Settings
+        // saved." never shows unless the queued notices are printed here.
+        settings_errors();
         echo '<form action="options.php" method="post">';
         settings_fields(self::GROUP);
         do_settings_sections(self::PAGE);

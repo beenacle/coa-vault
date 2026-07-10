@@ -3,6 +3,40 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.2.4
+- New: **bulk "Read data with AI"** on the All COAs screen. Select records whose attached
+  certificate still has empty figures (typical after a migration that only carried the
+  files), run the bulk action, and each certificate is read in turn with a progress bar —
+  then ONE review table shows every proposed value for you to tick and apply. Strictly
+  **fill-blanks-only**: only empty fields are ever written, checked again server-side, so
+  a bad read can never overwrite good data. A per-row **Read data** link runs the same
+  flow for a single record, and a notice on the list counts the records still missing
+  figures. Requires an Anthropic key (COA → Settings).
+- Change: a "Purity" or "Mass" row typed into the extra-characteristics repeater (in the
+  column's own unit) is now folded into the headline Purity/Mass field on save instead of
+  being stored twice; textual or off-unit values still stay as characteristics.
+- Fix: **storefront variation swap on cached pages.** Full-page caches could serve a stale
+  security token and silently break the per-variation COA swap; the swap now recovers by
+  itself (and aborts stale requests, so fast size-switching can't show the wrong COA).
+- Fix: **product editor reliability.** A failed save/delete (e.g. after the edit screen sat
+  open overnight) now shows the real error instead of failing silently; replacing the file
+  on an existing record updates THAT record instead of quietly creating a duplicate (the
+  form now says which batch it is editing); "Remove" actually detaches the file; a
+  double-click can't save twice; editing a record no longer discards stored textual
+  purity/mass characteristics.
+- Fix: hand-edited records are now owned by the store — a migration re-run no longer
+  reverts or hides an admin's corrections.
+- Fix: variable products whose COAs are all size-specific now show them on first load
+  instead of "No certificates available"; a record whose Media-Library file was deleted
+  falls back to its report URL; sizes sort numerically (5mg before 10mg).
+- Fix: partial REST updates (PATCH) no longer blank the fields they omit; catalog REST
+  responses carry standard pagination headers; the "Latest" flag is now correct on
+  filtered/paginated reads.
+- Fix: dense multi-analyte certificates no longer come back as "nothing read" (bigger AI
+  read budget, and a truncated read is reported as a failure instead of an empty result).
+- Dev: settings page shows "Settings saved."; sturdier install/upgrade on multisite and
+  restricted databases; bundled jsQR now ships with its full Apache-2.0 license text.
+
 ## 0.2.3
 - New: **re-read data from a certificate.** In the product COA editor, an attached
   certificate now has a **Re-read data** action that runs the AI reader over the file

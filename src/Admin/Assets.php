@@ -27,6 +27,50 @@ final class Assets
 
         wp_enqueue_style('coa-vault-admin', COA_VAULT_URL . 'assets/css/coa-admin.css', [], COA_VAULT_VERSION);
 
+        // All-COAs list: the bulk/per-row "Read data with AI" backfill flow.
+        if ($hook === 'toplevel_page_coa-vault') {
+            wp_enqueue_script(
+                'coa-vault-list',
+                COA_VAULT_URL . 'assets/js/coa-list.js',
+                ['jquery'],
+                COA_VAULT_VERSION,
+                true
+            );
+            wp_localize_script('coa-vault-list', 'coaList', [
+                'ajaxurl'   => admin_url('admin-ajax.php'),
+                'nonce'     => wp_create_nonce(BatchController::NONCE),
+                'aiEnabled' => Settings::ai_enabled(),
+                'i18n'      => [
+                    'confirm'       => __('Read %d certificate(s) with AI? You will review every value before it is saved.', 'coa-vault'),
+                    'nothingToDo'   => __('The selected COAs have no empty fields to fill — nothing to read.', 'coa-vault'),
+                    'aiOff'         => __('AI reading is off. Add an Anthropic key in COA → Settings first.', 'coa-vault'),
+                    'reading'       => __('Reading certificates with AI', 'coa-vault'),
+                    'cancel'        => __('Cancel', 'coa-vault'),
+                    'cancelled'     => __('Stopped — reviewing what was read so far.', 'coa-vault'),
+                    'readFail'      => __('Could not read this file.', 'coa-vault'),
+                    'nothingRead'   => __('Nothing new could be read from this file.', 'coa-vault'),
+                    'reviewHead'    => __('Review the proposed values — only empty fields are filled, and only what you tick is saved:', 'coa-vault'),
+                    'noneProposed'  => __('Nothing new could be read from the selected certificates.', 'coa-vault'),
+                    'apply'         => __('Apply selected', 'coa-vault'),
+                    'applying'      => __('Saving…', 'coa-vault'),
+                    'applied'       => __('Backfilled %d COA record(s). Reloading…', 'coa-vault'),
+                    'applyFail'     => __('Could not save. Try again.', 'coa-vault'),
+                    'close'         => __('Close', 'coa-vault'),
+                    'chars'         => __('+%d characteristics', 'coa-vault'),
+                    'cols'          => [
+                        'product' => __('Product', 'coa-vault'),
+                        'batch'   => __('Batch', 'coa-vault'),
+                        'lab'     => __('Lab', 'coa-vault'),
+                        'date'    => __('Date', 'coa-vault'),
+                        'purity'  => __('Purity %', 'coa-vault'),
+                        'mass'    => __('Mass mg', 'coa-vault'),
+                        'verify'  => __('Verify link', 'coa-vault'),
+                        'extras'  => __('Extras', 'coa-vault'),
+                    ],
+                ],
+            ]);
+        }
+
         if ($is_product) {
             wp_enqueue_media();
             // Bundled QR decoder (jsQR, Apache-2.0) — read in-browser at scan time.
@@ -46,6 +90,11 @@ final class Assets
                     'name'       => __('name', 'coa-vault'),
                     'value'      => __('value', 'coa-vault'),
                     'unit'       => __('unit', 'coa-vault'),
+                    'saveFail'      => __('Could not save. Try again.', 'coa-vault'),
+                    'deleteFail'    => __('Could not delete. Try again.', 'coa-vault'),
+                    'confirmDelete' => __('Delete this COA batch?', 'coa-vault'),
+                    /* translators: %s: the COA record id */
+                    'editingBatch'  => __('Editing saved batch #%s — Save updates it; Cancel to start a new one.', 'coa-vault'),
                     'scanning'     => __('Reading certificate…', 'coa-vault'),
                     'scanDone'     => __('Read — review the fields below before saving.', 'coa-vault'),
                     'scanManual'   => __('File attached and QR read — enter the figures below.', 'coa-vault'),

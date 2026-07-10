@@ -14,7 +14,9 @@ final class Installer
     public static function activate(bool $network_wide = false): void
     {
         if (is_multisite() && $network_wide) {
-            foreach (get_sites(['fields' => 'ids']) as $blog_id) {
+            // number => 0: get_sites() defaults to 100, silently skipping the rest
+            // of a larger network.
+            foreach (get_sites(['fields' => 'ids', 'number' => 0]) as $blog_id) {
                 switch_to_blog((int) $blog_id);
                 self::install();
                 restore_current_blog();
@@ -56,6 +58,13 @@ final class Installer
             dbDelta($statement);
         }
 
-        update_option('coa_vault_db_version', COA_VAULT_DB_VERSION, false);
+        // Only record success once the tables actually exist — otherwise a failed
+        // dbDelta (e.g. missing CREATE privilege) is never retried until the next
+        // version bump. Autoloaded: maybe_upgrade() reads it on every boot.
+        global $wpdb;
+        $records = Schema::records_table();
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $records)) === $records) {
+            update_option('coa_vault_db_version', COA_VAULT_DB_VERSION, true);
+        }
     }
 }

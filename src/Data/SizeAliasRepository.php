@@ -33,8 +33,16 @@ final class SizeAliasRepository
 
         if ($existing_id > 0) {
             $wpdb->update($table, $row, ['id' => $existing_id]);
-        } else {
-            $wpdb->insert($table, $row);
+            return;
+        }
+        if ($wpdb->insert($table, $row) === false) {
+            // Lost check-then-insert race on the (product_id, size_token) unique
+            // key: another run inserted first — apply this row as the update it
+            // was meant to be instead of dropping it.
+            $wpdb->update($table, $row, [
+                'product_id' => $alias->product_id,
+                'size_token' => $alias->size_token,
+            ]);
         }
     }
 

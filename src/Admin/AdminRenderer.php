@@ -106,12 +106,13 @@ final class AdminRenderer
 
         return '<div class="coa-admin-form" data-product-id="' . esc_attr((string) $product_id) . '">
             <h4 class="coa-admin-form-title">' . esc_html__('Add / edit COA batch', 'coa-vault') . '</h4>
+            <p class="coa-form-mode description" role="status" aria-live="polite"></p>
             <input type="hidden" class="coa-f-id" value="">
             <input type="hidden" class="coa-f-variation" value="">
 
             <div class="coa-media">
                 <input type="hidden" class="coa-f-fileid" value="">
-                <input type="file" class="coa-scan-input" accept="image/*,application/pdf" hidden>
+                <input type="file" class="coa-scan-input" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" hidden>
                 <div class="coa-drop">
                     <span class="dashicons dashicons-media-document coa-drop-icon" aria-hidden="true"></span>
                     <p class="coa-drop-text">' . esc_html__('Drag a certificate here, or', 'coa-vault') . '</p>
