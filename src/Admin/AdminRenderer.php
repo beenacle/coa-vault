@@ -38,6 +38,16 @@ final class AdminRenderer
             $size  = $r['size_token'] !== '' ? esc_html($r['size_token']) : ($r['applies_all_sizes'] ? esc_html__('All sizes', 'coa-vault') : '—');
             $latest = $r['is_latest'] ? ' <span class="coa-admin-latest">' . esc_html__('latest', 'coa-vault') . '</span>' : '';
 
+            // A date the plugin refused to guess at (an ambiguous 06/04/2026) is kept as
+            // the certificate's own text — show it so it can be corrected, not lost.
+            $raw  = (string) ($r['analysis_date_raw'] ?? '');
+            $date = ($r['analysis_date'] ?? '') !== ''
+                ? esc_html((string) $r['analysis_date'])
+                : ($raw !== ''
+                    ? '<span class="coa-admin-date-raw" title="' . esc_attr__('This date could not be read unambiguously, so it was not stored. Set the certificate date order in COA → Settings, or edit this batch and pick the date.', 'coa-vault') . '">'
+                        . esc_html($raw) . ' <em>' . esc_html__('(not set)', 'coa-vault') . '</em></span>'
+                    : '—');
+
             $rows .= sprintf(
                 '<tr data-record="%s">
                     <td>%s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>
@@ -48,7 +58,7 @@ final class AdminRenderer
                 $latest,
                 esc_html($r['batch'] !== '' ? $r['batch'] : '—'),
                 esc_html($r['lab']['label'] !== '' ? $r['lab']['label'] : '—'),
-                esc_html((string) ($r['analysis_date'] ?? '—')),
+                $date,
                 $r['purity_pct'] !== null ? esc_html((string) $r['purity_pct']) . '%' : '—',
                 $r['mass_mg'] !== null ? esc_html((string) $r['mass_mg']) . 'mg' : '—',
                 $report,
@@ -108,6 +118,7 @@ final class AdminRenderer
             <h4 class="coa-admin-form-title">' . esc_html__('Add / edit COA batch', 'coa-vault') . '</h4>
             <p class="coa-form-mode description" role="status" aria-live="polite"></p>
             <input type="hidden" class="coa-f-id" value="">
+            <input type="hidden" class="coa-f-date-raw" value="">
             <input type="hidden" class="coa-f-variation" value="">
 
             <div class="coa-media">

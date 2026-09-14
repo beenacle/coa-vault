@@ -34,7 +34,14 @@ final class RecordInput
             $lab_label = $lab['label'];
         }
 
-        [$iso, $ok] = Normalize::date((string) ($in['analysis_date'] ?? ''));
+        $submitted_date = (string) ($in['analysis_date'] ?? '');
+        [$iso, $ok]     = Normalize::date($submitted_date);
+        // The certificate's own date text, kept whenever we could not turn it into a real
+        // date. A save that submits no date — the editor posts '' for a record whose date
+        // never parsed — must PRESERVE the stored raw text, not blank it; only actually
+        // resolving the date clears it.
+        $raw_carried = sanitize_text_field((string) ($in['analysis_date_raw'] ?? ''));
+        $raw_kept    = $iso !== null ? '' : ($ok ? $raw_carried : sanitize_text_field($submitted_date));
 
         $file_id  = isset($in['report_file_id']) && $in['report_file_id'] !== '' ? (int) $in['report_file_id'] : null;
         $resolved = Report::resolve($file_id, (string) ($in['report_url'] ?? ''), (string) ($in['report_kind'] ?? Report::KIND_IMAGE));
@@ -57,11 +64,17 @@ final class RecordInput
             $fold = self::headline_fold($row);
             if ($fold === 'purity') {
                 $purity = $row['value_num'];
-                continue;
-            }
-            if ($fold === 'mass') {
+            } elseif ($fold === 'mass') {
                 $mass = $row['value_num'];
-                continue;
+            }
+            if ($fold !== null) {
+                // The figure now lives in its headline column. Keep the row ONLY when it
+                // also carries the certificate's limit or verdict (Purity "(>98%) ✓"),
+                // which the column has no room for — otherwise folding would discard them.
+                // The renderer folds these back onto the headline, so nothing shows twice.
+                if ($row['spec_text'] === '' && $row['passed'] === null) {
+                    continue;
+                }
             }
 
             $chars[] = $row;
@@ -86,7 +99,7 @@ final class RecordInput
             'lab_slug'          => $lab_slug,
             'lab_label'         => sanitize_text_field($lab_label),
             'analysis_date'     => $iso,
-            'analysis_date_raw' => $ok ? '' : sanitize_text_field((string) ($in['analysis_date'] ?? '')),
+            'analysis_date_raw' => $raw_kept,
             'purity_pct'        => $purity,
             'mass_mg'           => $mass,
             'report_file_id'    => $resolved['file_id'],
@@ -108,7 +121,7 @@ final class RecordInput
      * and the bulk AI backfill, so they can't drift. Returns null for an empty row.
      *
      * @param array<string,mixed> $c
-     * @return array{name_slug:string,name_label:string,value_num:?float,value_text:string,unit:string}|null
+     * @return array{name_slug:string,name_label:string,value_num:?float,value_text:string,unit:string,spec_text:string,passed:?int}|null
      */
     public static function char_row(array $c): ?array
     {
@@ -122,9 +135,68 @@ final class RecordInput
             'name_slug'  => Normalize::name_slug($name),
             'name_label' => $name,
             'value_num'  => $num,
-            'value_text' => $num === null ? sanitize_text_field($val) : '',
+            'value_text' => $num === null ? self::plain_text($val) : '',
             'unit'       => Normalize::unit(sanitize_text_field((string) ($c['unit'] ?? ''))),
+            // The certificate's stated limit for this test (">98%", "<5 EU/vial") and
+            // its pass/fail verdict — kept verbatim; a limit is a range, not a number.
+            'spec_text'  => self::plain_text((string) ($c['spec'] ?? $c['spec_text'] ?? '')),
+            'passed'     => self::tri_state($c['passed'] ?? null),
         ];
+    }
+
+    /**
+     * Sanitize to plain text WITHOUT leaving HTML entities behind.
+     *
+     * sanitize_text_field() cannot tell "<5 EU/vial" from a tag, so it encodes the
+     * "<" to "&lt;" — which the renderer then escapes again, printing a literal
+     * "&lt;5 EU/vial" on the storefront. Lab limits and results are full of "<" and
+     * ">" ("<5 EU/vial", "<0.05", ">98%"), so decode back to the real characters.
+     * Safe: real markup is stripped to nothing by the sanitizer BEFORE this runs,
+     * and every consumer escapes on output.
+     */
+    public static function plain_text(string $raw): string
+    {
+        // Decode FIRST, and repeatedly, so double-encoded markup ("&amp;lt;script&amp;gt;")
+        // cannot survive as text and be decoded back into a live tag afterwards. Only
+        // then sanitize, so anything that is really markup is stripped here.
+        $value = $raw;
+        for ($i = 0; $i < 5; $i++) {
+            $decoded = html_entity_decode($value, ENT_QUOTES, 'UTF-8');
+            if ($decoded === $value) {
+                break;
+            }
+            $value = $decoded;
+        }
+        $value = sanitize_text_field($value);
+        // sanitize_text_field cannot tell "<5 EU/vial" from a tag, so it encodes the lone
+        // "<". Restore just that one entity: anything containing ">" was already stripped
+        // as markup above, so this cannot resurrect a tag.
+        return trim(str_replace('&lt;', '<', $value));
+    }
+
+    /**
+     * Pass / fail / not-stated. Certificates mark a row with a tick, "Pass", "Conforms"
+     * or nothing at all, so anything unrecognized stays null rather than becoming a
+     * false "fail".
+     *
+     * @param mixed $value
+     */
+    private static function tri_state($value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+        $s = strtolower(trim((string) $value));
+        if (in_array($s, ['1', 'true', 'yes', 'pass', 'passed', 'ok', 'conforms'], true)) {
+            return 1;
+        }
+        if (in_array($s, ['0', 'false', 'no', 'fail', 'failed'], true)) {
+            return 0;
+        }
+        return null;
     }
 
     /**

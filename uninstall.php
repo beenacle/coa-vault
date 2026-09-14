@@ -49,6 +49,7 @@ function coa_vault_uninstall_site(): void
     delete_option('coa_vault_frontend');
     delete_option('coa_vault_autoinject');
     delete_option('coa_vault_display_mode');
+delete_option('coa_vault_date_order');
 }
 
 if (is_multisite()) {

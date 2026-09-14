@@ -145,6 +145,9 @@ final class CoaController
             'batch'             => $rec['batch'],
             'lab_label'         => $rec['lab']['label'] ?? '',
             'analysis_date'     => $rec['analysis_date'] ?? '',
+            // Carried so a PATCH that omits the date can't discard the certificate's
+            // original (unparseable) date text stored alongside it.
+            'analysis_date_raw' => $rec['analysis_date_raw'] ?? '',
             'purity_pct'        => $rec['purity_pct'] ?? '',
             'mass_mg'           => $rec['mass_mg'] ?? '',
             'report_file_id'    => $rec['report']['file_id'] ?? '',
@@ -155,9 +158,13 @@ final class CoaController
             'applies_all_sizes' => !empty($rec['applies_all_sizes']) ? 1 : '',
             'characteristics'   => array_map(
                 static fn (array $c): array => [
-                    'name'  => ($c['label'] ?? '') !== '' ? $c['label'] : $c['name'],
-                    'value' => $c['value'],
-                    'unit'  => $c['unit'],
+                    'name'   => ($c['label'] ?? '') !== '' ? $c['label'] : $c['name'],
+                    'value'  => $c['value'],
+                    'unit'   => $c['unit'],
+                    // Carried through so a PATCH that omits characteristics can't
+                    // silently drop a stored spec/verdict on the re-save.
+                    'spec'   => $c['spec'] ?? '',
+                    'passed' => $c['passed'] ?? null,
                 ],
                 (array) ($rec['characteristics'] ?? [])
             ),

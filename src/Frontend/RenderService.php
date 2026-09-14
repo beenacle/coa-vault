@@ -155,29 +155,60 @@ final class RenderService
         $summary .= '</summary>';
 
         // Results as a native description list (key/value) — themes style <dl> already.
+        // Each fact is [label, value, spec, passed]: the spec is the certificate's
+        // stated limit (">98%") and passed its verdict, both optional.
+        // A Purity/Mass row folds into the headline column, but is kept when it carries
+        // the certificate's limit or verdict — collect those so they show ON the headline
+        // figure rather than as a duplicate row.
+        $headline = ['purity' => ['', null], 'mass' => ['', null]];
+        foreach ((array) $r['characteristics'] as $c) {
+            if (isset($headline[$c['name']])) {
+                $headline[$c['name']] = [(string) ($c['spec'] ?? ''), $c['passed'] ?? null];
+            }
+        }
+
         $facts = [];
         if ($r['purity_pct'] !== null) {
-            $facts[] = [__('Purity', 'coa-vault'), self::num($r['purity_pct']) . '%'];
+            $facts[] = [__('Purity', 'coa-vault'), self::num($r['purity_pct']) . '%', $headline['purity'][0], $headline['purity'][1]];
         }
         if ($r['mass_mg'] !== null) {
-            $facts[] = [__('Mass', 'coa-vault'), self::num($r['mass_mg']) . ' mg'];
+            $facts[] = [__('Mass', 'coa-vault'), self::num($r['mass_mg']) . ' mg', $headline['mass'][0], $headline['mass'][1]];
         }
         foreach ((array) $r['characteristics'] as $c) {
             if (in_array($c['name'], ['purity', 'mass'], true)) {
-                continue; // already shown via the hot columns
+                continue; // shown via the hot columns above, spec and verdict included
             }
-            if ($c['value'] === null) {
-                continue; // no value to show — would render a dangling unit
+            $spec   = (string) ($c['spec'] ?? '');
+            $passed = $c['passed'] ?? null;
+            if ($c['value'] === null && $spec === '' && $passed === null) {
+                continue; // nothing at all to show
             }
-            $val     = is_float($c['value']) ? self::num($c['value']) : (string) $c['value'];
-            $facts[] = [($c['label'] ?: $c['name']), trim($val . ' ' . $c['unit'])];
+            // A pass/fail-only row (e.g. Sterility ✓ against "USP <71>") is worth showing;
+            // the unit is appended only when there IS a value, so no dangling "mg".
+            $val     = $c['value'] === null
+                ? ''
+                : trim((is_float($c['value']) ? self::num($c['value']) : (string) $c['value']) . ' ' . $c['unit']);
+            $facts[] = [($c['label'] ?: $c['name']), $val, $spec, $passed];
         }
 
         $dl = '';
         if ($facts !== []) {
             $dl = '<dl class="coa-vault-facts">';
-            foreach ($facts as [$key, $value]) {
-                $dl .= '<dt>' . esc_html($key) . '</dt><dd>' . esc_html($value) . '</dd>';
+            foreach ($facts as [$key, $value, $spec, $passed]) {
+                $parts = [];
+                if ($value !== '') {
+                    $parts[] = esc_html($value);
+                }
+                if ($passed !== null) {
+                    $parts[] = $passed
+                        ? '<span class="coa-vault-pass" title="' . esc_attr__('Meets the stated specification', 'coa-vault') . '">&#10003;</span>'
+                        : '<span class="coa-vault-fail" title="' . esc_attr__('Outside the stated specification', 'coa-vault') . '">&#10007;</span>';
+                }
+                if ($spec !== '') {
+                    /* translators: %s: the certificate's stated limit, e.g. ">98%" */
+                    $parts[] = '<span class="coa-vault-spec">' . esc_html(sprintf(__('(spec %s)', 'coa-vault'), $spec)) . '</span>';
+                }
+                $dl .= '<dt>' . esc_html($key) . '</dt><dd>' . implode(' ', $parts) . '</dd>';
             }
             $dl .= '</dl>';
         }

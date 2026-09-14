@@ -15,6 +15,10 @@ final class Characteristic
         public ?float $value_num = null,
         public string $value_text = '',
         public string $unit = '',
+        /** The certificate's stated limit for this test, e.g. ">98%" or "<5 EU/vial". */
+        public string $spec_text = '',
+        /** Pass/fail against that spec; null when the certificate states no verdict. */
+        public ?bool $passed = null,
         public int $position = 0,
     ) {
     }

@@ -3,6 +3,28 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.0
+- **Fix (data correctness): an ambiguous certificate date is no longer guessed.** `06/04/2026`
+  is June 4 to a US lab and 6 April to an EU one, and the parser silently assumed day-first —
+  storing a date up to months off and mis-ordering which batch counts as "Latest". Such a date
+  is now left unset, with the certificate's own text kept and shown in the product's COA list so
+  you can correct it. Declare your labs' convention under **COA → Settings → Certificate date
+  order** (or the `coa_vault_date_order` filter) to have them read automatically again.
+- The scan / import flow says so too: a certificate date it reads but cannot resolve is reported
+  in the review notice and carried onto the saved record, instead of the Date field just appearing
+  blank. Picking a date clears the kept text; re-saving a record never discards it.
+- New: unambiguous US dates now parse — `03/25/2026` is read correctly, as are `-` and `.`
+  separators. ISO dates (`2026-06-04`, `20260604`) and dates picked in the editor are unaffected.
+- New: characteristics can record the certificate's **stated limit and pass/fail verdict**
+  (`spec_text` / `passed`), so a full-panel COA — Purity `(>98%)`, Endotoxin `(<5 EU/vial)`,
+  pH `(6.0 - 8.0)` — keeps its reference column instead of losing it. Shown on the storefront
+  beside each result and editable per row in the product COA box.
+- Fix: a result or limit beginning with "<" (`<0.05`, `<5 EU/vial`) was stored HTML-encoded and
+  then escaped again, so the storefront printed a literal `&lt;0.05`. Such values are now stored
+  and shown as the lab printed them; existing rows are corrected on read, with no migration.
+- New: Kovera Labs and Horizon Analytical added to the built-in lab list, including verify-link
+  host inference.
+
 ## 0.2.4
 - New: **bulk "Read data with AI"** on the All COAs screen. Select records whose attached
   certificate still has empty figures (typical after a migration that only carried the
