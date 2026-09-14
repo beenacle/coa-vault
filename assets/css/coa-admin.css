@@ -95,3 +95,6 @@ details.coa-advanced > summary { cursor: pointer; color: var(--wp-admin-theme-co
 /* The 8-column batches table gets no core responsive treatment inside a metabox —
    let it scroll sideways on narrow screens instead of crushing the columns. */
 .coa-admin-list { overflow-x: auto; }
+.coa-c-spec { min-width: 7em; }
+.coa-admin-date-raw { color: #b32d2e; }
+.coa-admin-date-raw em { font-style: normal; opacity: .75; }

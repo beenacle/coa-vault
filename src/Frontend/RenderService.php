@@ -155,12 +155,14 @@ final class RenderService
         $summary .= '</summary>';
 
         // Results as a native description list (key/value) — themes style <dl> already.
+        // Each fact is [label, value, spec, passed]: the spec is the certificate's
+        // stated limit (">98%") and passed its verdict, both optional.
         $facts = [];
         if ($r['purity_pct'] !== null) {
-            $facts[] = [__('Purity', 'coa-vault'), self::num($r['purity_pct']) . '%'];
+            $facts[] = [__('Purity', 'coa-vault'), self::num($r['purity_pct']) . '%', '', null];
         }
         if ($r['mass_mg'] !== null) {
-            $facts[] = [__('Mass', 'coa-vault'), self::num($r['mass_mg']) . ' mg'];
+            $facts[] = [__('Mass', 'coa-vault'), self::num($r['mass_mg']) . ' mg', '', null];
         }
         foreach ((array) $r['characteristics'] as $c) {
             if (in_array($c['name'], ['purity', 'mass'], true)) {
@@ -170,14 +172,29 @@ final class RenderService
                 continue; // no value to show — would render a dangling unit
             }
             $val     = is_float($c['value']) ? self::num($c['value']) : (string) $c['value'];
-            $facts[] = [($c['label'] ?: $c['name']), trim($val . ' ' . $c['unit'])];
+            $facts[] = [
+                ($c['label'] ?: $c['name']),
+                trim($val . ' ' . $c['unit']),
+                (string) ($c['spec'] ?? ''),
+                $c['passed'] ?? null,
+            ];
         }
 
         $dl = '';
         if ($facts !== []) {
             $dl = '<dl class="coa-vault-facts">';
-            foreach ($facts as [$key, $value]) {
-                $dl .= '<dt>' . esc_html($key) . '</dt><dd>' . esc_html($value) . '</dd>';
+            foreach ($facts as [$key, $value, $spec, $passed]) {
+                $dd = esc_html($value);
+                if ($passed !== null) {
+                    $dd .= $passed
+                        ? ' <span class="coa-vault-pass" title="' . esc_attr__('Meets the stated specification', 'coa-vault') . '">&#10003;</span>'
+                        : ' <span class="coa-vault-fail" title="' . esc_attr__('Outside the stated specification', 'coa-vault') . '">&#10007;</span>';
+                }
+                if ($spec !== '') {
+                    /* translators: %s: the certificate's stated limit, e.g. ">98%" */
+                    $dd .= ' <span class="coa-vault-spec">' . esc_html(sprintf(__('(spec %s)', 'coa-vault'), $spec)) . '</span>';
+                }
+                $dl .= '<dt>' . esc_html($key) . '</dt><dd>' . $dd . '</dd>';
             }
             $dl .= '</dl>';
         }

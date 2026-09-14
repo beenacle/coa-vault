@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.4
+Stable tag: 0.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -98,6 +98,20 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.0 =
+* Fix (data correctness): an ambiguous certificate date such as 06/04/2026 is no longer guessed as
+  day-first. It is left unset with the certificate's own text kept and shown in the product's COA
+  list, so a batch can't be silently mis-dated or wrongly flagged "Latest". Set your labs' convention
+  under COA -> Settings -> Certificate date order to have such dates read automatically.
+* New: unambiguous US dates (03/25/2026) and "-"/"." separators now parse. ISO dates and dates picked
+  in the editor are unaffected.
+* New: characteristics can record the certificate's stated limit and pass/fail verdict, so a
+  full-panel COA keeps its reference column (Purity >98%, Endotoxin <5 EU/vial, pH 6.0-8.0).
+* Fix: a result or limit beginning with "<" (such as <0.05 or <5 EU/vial) was stored HTML-encoded
+  and shown literally as &lt;0.05 on the storefront. Now stored and displayed as printed; existing
+  records are corrected on read.
+* New: Kovera Labs and Horizon Analytical added to the built-in lab list.
 
 = 0.2.4 =
 * New: bulk "Read data with AI" on the All COAs screen — select records whose attached certificate
@@ -212,6 +226,10 @@ are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` 
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.3.0 =
+Ambiguous certificate dates (06/04/2026) are no longer guessed — they are kept as text for you to
+confirm. If your labs print US month-first dates, set COA -> Settings -> Certificate date order.
 
 = 0.2.2 =
 Adds a "View full report (PDF)" link so multi-page PDF certificates are fully viewable, and lets

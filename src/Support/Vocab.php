@@ -24,6 +24,8 @@ final class Vocab
         'freedom'     => 'Freedom Diagnostics',
         'mz_biolabs'  => 'MZ Biolabs',
         'accumark'    => 'AccuMark Labs',
+        'kovera'      => 'Kovera Labs',
+        'horizon'     => 'Horizon Analytical',
     ];
 
     /**
@@ -54,6 +56,10 @@ final class Vocab
         'btlabtesting'              => 'bt_labs',
         'btlabs'                    => 'bt_labs',
         'bt labs'                   => 'bt_labs',
+        'kovera labs'               => 'kovera',
+        'kovera'                    => 'kovera',
+        'horizon analytical'        => 'horizon',
+        'horizon'                   => 'horizon',
     ];
 
     /**
@@ -70,6 +76,8 @@ final class Vocab
         'trustpointeanalytics.com' => 'trustpointe',
         'freedomdiagnosticstesting.com' => 'freedom',
         'accumarklabs.com'         => 'accumark',
+        'koveralabs.com'           => 'kovera',
+        'horizonanalytical.com'    => 'horizon',
         'mzbiolabs.com'            => 'mz_biolabs',
     ];
 

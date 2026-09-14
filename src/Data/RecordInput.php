@@ -108,7 +108,7 @@ final class RecordInput
      * and the bulk AI backfill, so they can't drift. Returns null for an empty row.
      *
      * @param array<string,mixed> $c
-     * @return array{name_slug:string,name_label:string,value_num:?float,value_text:string,unit:string}|null
+     * @return array{name_slug:string,name_label:string,value_num:?float,value_text:string,unit:string,spec_text:string,passed:?int}|null
      */
     public static function char_row(array $c): ?array
     {
@@ -122,9 +122,53 @@ final class RecordInput
             'name_slug'  => Normalize::name_slug($name),
             'name_label' => $name,
             'value_num'  => $num,
-            'value_text' => $num === null ? sanitize_text_field($val) : '',
+            'value_text' => $num === null ? self::plain_text($val) : '',
             'unit'       => Normalize::unit(sanitize_text_field((string) ($c['unit'] ?? ''))),
+            // The certificate's stated limit for this test (">98%", "<5 EU/vial") and
+            // its pass/fail verdict — kept verbatim; a limit is a range, not a number.
+            'spec_text'  => self::plain_text((string) ($c['spec'] ?? $c['spec_text'] ?? '')),
+            'passed'     => self::tri_state($c['passed'] ?? null),
         ];
+    }
+
+    /**
+     * Sanitize to plain text WITHOUT leaving HTML entities behind.
+     *
+     * sanitize_text_field() cannot tell "<5 EU/vial" from a tag, so it encodes the
+     * "<" to "&lt;" — which the renderer then escapes again, printing a literal
+     * "&lt;5 EU/vial" on the storefront. Lab limits and results are full of "<" and
+     * ">" ("<5 EU/vial", "<0.05", ">98%"), so decode back to the real characters.
+     * Safe: real markup is stripped to nothing by the sanitizer BEFORE this runs,
+     * and every consumer escapes on output.
+     */
+    private static function plain_text(string $raw): string
+    {
+        return trim(html_entity_decode(sanitize_text_field($raw), ENT_QUOTES, 'UTF-8'));
+    }
+
+    /**
+     * Pass / fail / not-stated. Certificates mark a row with a tick, "Pass", "Conforms"
+     * or nothing at all, so anything unrecognized stays null rather than becoming a
+     * false "fail".
+     *
+     * @param mixed $value
+     */
+    private static function tri_state($value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+        $s = strtolower(trim((string) $value));
+        if (in_array($s, ['1', 'true', 'yes', 'pass', 'passed', 'ok', 'conforms'], true)) {
+            return 1;
+        }
+        if (in_array($s, ['0', 'false', 'no', 'fail', 'failed'], true)) {
+            return 0;
+        }
+        return null;
     }
 
     /**

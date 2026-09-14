@@ -155,9 +155,13 @@ final class CoaController
             'applies_all_sizes' => !empty($rec['applies_all_sizes']) ? 1 : '',
             'characteristics'   => array_map(
                 static fn (array $c): array => [
-                    'name'  => ($c['label'] ?? '') !== '' ? $c['label'] : $c['name'],
-                    'value' => $c['value'],
-                    'unit'  => $c['unit'],
+                    'name'   => ($c['label'] ?? '') !== '' ? $c['label'] : $c['name'],
+                    'value'  => $c['value'],
+                    'unit'   => $c['unit'],
+                    // Carried through so a PATCH that omits characteristics can't
+                    // silently drop a stored spec/verdict on the re-save.
+                    'spec'   => $c['spec'] ?? '',
+                    'passed' => $c['passed'] ?? null,
                 ],
                 (array) ($rec['characteristics'] ?? [])
             ),

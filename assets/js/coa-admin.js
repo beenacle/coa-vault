@@ -16,12 +16,23 @@
       .replace(/>/g, '&gt;');
   }
 
-  function charRow(name, value, unit) {
+  // A characteristic row: name / value / unit, plus the certificate's stated limit
+  // ("spec") and its pass-fail verdict. `passed` arrives as true/false/null.
+  function charRow(name, value, unit, spec, passed) {
+    var cur = (passed === true || passed === 1 || passed === '1') ? '1'
+            : (passed === false || passed === 0 || passed === '0') ? '0' : '';
+    function opt(v, label) {
+      return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + escAttr(label) + '</option>';
+    }
     return (
       '<p class="coa-char-row">' +
       '<input type="text" class="coa-c-name" placeholder="' + escAttr(coaAdmin.i18n.name) + '" value="' + escAttr(name) + '">' +
       '<input type="text" class="coa-c-value" placeholder="' + escAttr(coaAdmin.i18n.value) + '" value="' + escAttr(value) + '">' +
       '<input type="text" class="coa-c-unit" placeholder="' + escAttr(coaAdmin.i18n.unit) + '" value="' + escAttr(unit) + '">' +
+      '<input type="text" class="coa-c-spec" placeholder="' + escAttr(coaAdmin.i18n.spec) + '" value="' + escAttr(spec) + '">' +
+      '<select class="coa-c-passed" title="' + escAttr(coaAdmin.i18n.spec) + '">' +
+        opt('', coaAdmin.i18n.resultNone) + opt('1', coaAdmin.i18n.pass) + opt('0', coaAdmin.i18n.fail) +
+      '</select>' +
       '<button type="button" class="button-link coa-remove-char">' + escAttr(coaAdmin.i18n.remove) + '</button>' +
       '</p>'
     );
@@ -149,7 +160,7 @@
     }
     if (!merge || chars.length) {
       var $rows = $form.find('.coa-f-chars-rows').empty();
-      chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit)); });
+      chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit, c.spec, c.passed)); });
     }
 
     // Media card for any attached file OR external report URL (link-kind COAs have a
@@ -171,7 +182,13 @@
       var name = $(this).find('.coa-c-name').val();
       var value = $(this).find('.coa-c-value').val();
       if (!name && !value) { return; }
-      chars.push({ name: name, value: value, unit: $(this).find('.coa-c-unit').val() });
+      chars.push({
+        name: name,
+        value: value,
+        unit: $(this).find('.coa-c-unit').val(),
+        spec: $(this).find('.coa-c-spec').val(),
+        passed: $(this).find('.coa-c-passed').val()
+      });
     });
     return {
       id: $form.find('.coa-f-id').val(),
@@ -513,7 +530,7 @@
           $form.find(row.field.sel).val(row.neu);
         } else if (chars) {
           var $rows = $form.find('.coa-f-chars-rows').empty();
-          chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit)); });
+          chars.forEach(function (c) { $rows.append(charRow(c.label || c.name, c.value, c.unit, c.spec, c.passed)); });
         }
       });
       $panel.remove();

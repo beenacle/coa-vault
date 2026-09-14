@@ -72,6 +72,8 @@ final class CoaRepository
                 'value_num'  => $c->value_num,
                 'value_text' => $c->value_text,
                 'unit'       => $c->unit,
+                'spec_text'  => $c->spec_text,
+                'passed'     => $c->passed === null ? null : (int) $c->passed,
                 'position'   => $c->position !== 0 ? $c->position : $position,
             ]);
             $position++;
@@ -481,6 +483,8 @@ final class CoaRepository
                 'value_num'  => $c['value_num'] ?? null,
                 'value_text' => (string) ($c['value_text'] ?? ''),
                 'unit'       => (string) ($c['unit'] ?? ''),
+                'spec_text'  => (string) ($c['spec_text'] ?? ''),
+                'passed'     => $c['passed'] ?? null,
                 'position'   => $position++,
             ]);
         }
@@ -526,6 +530,8 @@ final class CoaRepository
                 'value_num'  => $c['value_num'] ?? null,
                 'value_text' => (string) ($c['value_text'] ?? ''),
                 'unit'       => (string) ($c['unit'] ?? ''),
+                'spec_text'  => (string) ($c['spec_text'] ?? ''),
+                'passed'     => $c['passed'] ?? null,
                 'position'   => $position++,
             ]);
         }
@@ -636,15 +642,24 @@ final class CoaRepository
      */
     private function shape(object $r, array $chars, bool $is_latest): array
     {
-        $characteristics = array_map(static function (object $c): array {
+        // Rows saved before plain_text() (or by an older version) can hold "&lt;0.05"
+        // where the certificate said "<0.05"; decoding here means they render as the
+        // lab printed them instead of showing the entity. Output is escaped downstream.
+        $plain = static fn (string $s): string => $s === '' ? '' : html_entity_decode($s, ENT_QUOTES, 'UTF-8');
+
+        $characteristics = array_map(static function (object $c) use ($plain): array {
             $value = $c->value_num !== null
                 ? (float) $c->value_num
-                : ($c->value_text !== '' ? $c->value_text : null);
+                : ($c->value_text !== '' ? $plain((string) $c->value_text) : null);
+            // Null-coalesced: rows read before the spec columns existed lack them.
+            $passed = $c->passed ?? null;
             return [
                 'name'     => $c->name_slug,
                 'label'    => $c->name_label,
                 'value'    => $value,
                 'unit'     => $c->unit,
+                'spec'     => $plain((string) ($c->spec_text ?? '')),
+                'passed'   => ($passed === null || $passed === '') ? null : (bool) (int) $passed,
                 'position' => (int) $c->position,
             ];
         }, $chars);
@@ -658,6 +673,10 @@ final class CoaRepository
             'batch_inferred'    => (bool) $r->batch_inferred,
             'lab'               => ['slug' => $r->lab_slug, 'label' => $r->lab_label],
             'analysis_date'     => $r->analysis_date,
+            // The certificate's own date text, kept only when it could NOT be parsed
+            // (e.g. an ambiguous 06/04/2026) so the admin can see and correct it
+            // instead of the value vanishing silently.
+            'analysis_date_raw' => (string) ($r->analysis_date_raw ?? ''),
             'purity_pct'        => $r->purity_pct !== null ? (float) $r->purity_pct : null,
             'mass_mg'           => $r->mass_mg !== null ? (float) $r->mass_mg : null,
             'report'            => [

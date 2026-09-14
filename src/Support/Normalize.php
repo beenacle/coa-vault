@@ -122,8 +122,25 @@ final class Normalize
     }
 
     /**
-     * Parse a legacy date in any of the three formats seen across sites into ISO Y-m-d.
-     * Must round-trip or it is rejected (NULL + raw kept + flagged by the caller).
+     * The site's declared order for all-numeric dates: 'dmy', 'mdy', or '' to refuse
+     * to guess. Set via COA → Settings (`coa_vault_date_order`) or the same-named
+     * filter. Labs print 06/04/2026 meaning 6 April (EU) or June 4 (US) with nothing
+     * on the certificate to tell them apart, so this is the only reliable signal.
+     */
+    public static function date_order(): string
+    {
+        $order = (string) apply_filters('coa_vault_date_order', (string) get_option('coa_vault_date_order', ''));
+        return in_array($order, ['dmy', 'mdy'], true) ? $order : '';
+    }
+
+    /**
+     * Parse a certificate date into ISO Y-m-d.
+     *
+     * Unambiguous inputs always parse: ISO (Y-m-d / Ymd) and any separated numeric
+     * date whose day component exceeds 12 (25/03/2026 can only be d/m/Y, 03/25/2026
+     * only m/d/Y). A genuinely ambiguous one like 06/04/2026 is REJECTED unless the
+     * site has declared its order — guessing silently mis-dates the certificate and
+     * mis-orders "latest", so the raw text is preserved and flagged instead.
      *
      * @return array{0:?string,1:bool} [iso-date|null, parsed-ok]
      */
@@ -133,12 +150,48 @@ final class Normalize
         if ($raw === '') {
             return [null, true]; // genuinely absent is not an anomaly
         }
-        foreach (['Y-m-d', 'Ymd', 'd/m/Y'] as $fmt) {
+
+        // Unambiguous machine formats.
+        foreach (['Y-m-d', 'Ymd'] as $fmt) {
             $dt = \DateTimeImmutable::createFromFormat('!' . $fmt, $raw);
             if ($dt instanceof \DateTimeImmutable && $dt->format($fmt) === $raw) {
                 return [$dt->format('Y-m-d'), true];
             }
         }
+
+        // Separated all-numeric date — decide d/m/Y vs m/d/Y, or refuse.
+        if (preg_match('#^(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4})$#', $raw, $m) === 1) {
+            $a = (int) $m[1];
+            $b = (int) $m[2];
+            $y = (int) $m[3];
+
+            if ($a > 12 && $b <= 12) {
+                $day = $a;                      // only d/m/Y can be meant
+                $month = $b;
+            } elseif ($b > 12 && $a <= 12) {
+                $month = $a;                    // only m/d/Y can be meant
+                $day = $b;
+            } elseif ($a <= 12 && $b <= 12) {
+                $order = self::date_order();
+                if ($order === 'dmy') {
+                    $day = $a;
+                    $month = $b;
+                } elseif ($order === 'mdy') {
+                    $month = $a;
+                    $day = $b;
+                } else {
+                    return [null, false];       // ambiguous and undeclared — never guess
+                }
+            } else {
+                return [null, false];           // both components > 12: not a date
+            }
+
+            if (!checkdate($month, $day, $y)) {
+                return [null, false];
+            }
+            return [sprintf('%04d-%02d-%02d', $y, $month, $day), true];
+        }
+
         return [null, false]; // unparseable → anomaly
     }
 

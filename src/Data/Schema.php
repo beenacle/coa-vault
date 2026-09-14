@@ -89,6 +89,8 @@ final class Schema
   value_num decimal(18,6) NULL DEFAULT NULL,
   value_text varchar(255) NOT NULL DEFAULT '',
   unit varchar(16) NOT NULL DEFAULT '',
+  spec_text varchar(190) NOT NULL DEFAULT '',
+  passed tinyint(1) NULL DEFAULT NULL,
   position int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY  (id),
   KEY coa_id (coa_id),

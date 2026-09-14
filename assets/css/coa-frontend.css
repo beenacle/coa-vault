@@ -61,3 +61,8 @@
 /* open-body spacing */
 .coa-vault-item > details > :not(summary) { padding: 0 .1em .8em; }
 .coa-vault-archive__item > .coa-vault-list { padding-left: 1em; margin-bottom: .4em; }
+
+/* Spec / pass-fail against the certificate's stated limit. */
+.coa-vault-spec { opacity: .65; font-size: .9em; }
+.coa-vault-pass { color: #2e7d32; }
+.coa-vault-fail { color: #b32d2e; }

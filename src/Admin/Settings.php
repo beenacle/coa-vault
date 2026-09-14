@@ -94,6 +94,11 @@ final class Settings
             'default'           => 'auto',
         ]);
         register_setting(self::GROUP, 'coa_vault_drop_data_on_uninstall', $bool + ['default' => '0']);
+        register_setting(self::GROUP, 'coa_vault_date_order', [
+            'type'              => 'string',
+            'sanitize_callback' => [self::class, 'sanitize_date_order'],
+            'default'           => '',
+        ]);
         register_setting(self::GROUP, self::KEY_OPTION, [
             'type'              => 'string',
             'sanitize_callback' => [self::class, 'sanitize_key'],
@@ -119,6 +124,13 @@ final class Settings
             __('Data', 'coa-vault'),
             '__return_null', // no section intro; the field carries its own description
             self::PAGE
+        );
+        add_settings_field(
+            'coa_vault_date_order',
+            __('Certificate date order', 'coa-vault'),
+            [$this, 'field_date_order'],
+            self::PAGE,
+            'coa_vault_data'
         );
         add_settings_field(
             'coa_vault_drop_data_on_uninstall',
@@ -247,6 +259,39 @@ final class Settings
         update_option('coa_vault_frontend', $mode === 'off' ? '0' : '1');
         update_option('coa_vault_autoinject', $mode === 'auto' ? '1' : '0');
         return $mode;
+    }
+
+    /**
+     * How to read an all-numeric certificate date. Only ambiguous dates depend on
+     * this — 25/03/2026 is read correctly either way; 06/04/2026 is not.
+     *
+     * @param mixed $value
+     */
+    public static function sanitize_date_order($value): string
+    {
+        return in_array($value, ['dmy', 'mdy'], true) ? (string) $value : '';
+    }
+
+    public function field_date_order(): void
+    {
+        $current = \CoaVault\Support\Normalize::date_order();
+        $options = [
+            ''    => __('Ask me — don’t guess (recommended)', 'coa-vault'),
+            'mdy' => __('Month first — 06/04/2026 is June 4 (US labs)', 'coa-vault'),
+            'dmy' => __('Day first — 06/04/2026 is 6 April (EU/UK labs)', 'coa-vault'),
+        ];
+
+        echo '<fieldset>';
+        foreach ($options as $value => $label) {
+            printf(
+                '<label style="display:block;margin:.35em 0;"><input type="radio" name="coa_vault_date_order" value="%s"%s> %s</label>',
+                esc_attr($value),
+                checked($current, $value, false),
+                esc_html($label)
+            );
+        }
+        echo '</fieldset>';
+        echo '<p class="description">' . esc_html__('Certificates print dates like 06/04/2026 with nothing to say whether that is June 4 or 6 April, and guessing wrong silently back-dates a batch and can show the wrong certificate as “Latest”. Left on “Ask me”, such a date is not stored — the certificate is saved with the original text kept and the date left blank for you to fill in. Dates you pick in the editor, ISO dates (2026-06-04), and unambiguous ones (25/03/2026) are always read correctly.', 'coa-vault') . '</p>';
     }
 
     public function field_uninstall(): void
