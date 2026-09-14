@@ -62,9 +62,21 @@ final class Installer
         // dbDelta (e.g. missing CREATE privilege) is never retried until the next
         // version bump. Autoloaded: maybe_upgrade() reads it on every boot.
         global $wpdb;
-        $records = Schema::records_table();
-        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $records)) === $records) {
-            update_option('coa_vault_db_version', COA_VAULT_DB_VERSION, true);
+        foreach ([Schema::records_table(), Schema::characteristics_table(), Schema::aliases_table()] as $table) {
+            if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+                return;
+            }
         }
+
+        // Existing tables also have to have gained this version's COLUMNS. dbDelta adds
+        // them with ALTER, which can fail on its own (no ALTER privilege, row-size limit)
+        // — recording success then would strand the site on a half-migrated schema that
+        // maybe_upgrade() never retries, silently dropping every characteristic written.
+        $chars = Schema::characteristics_table();
+        if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$chars} LIKE %s", 'spec_text')) !== 'spec_text') {
+            return;
+        }
+
+        update_option('coa_vault_db_version', COA_VAULT_DB_VERSION, true);
     }
 }

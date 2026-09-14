@@ -95,6 +95,7 @@
     updateModeIndicator($form);
     $form.find('input[type="text"], input[type="number"], input[type="url"], input[type="date"]').val('');
     $form.find('.coa-f-lab').val('');
+    $form.find('.coa-f-date-raw').val('');
     $form.find('.coa-f-size-select').val('');
     $form.find('.coa-f-variation').val('');
     $form.find('.coa-f-chars-rows').empty();
@@ -140,6 +141,9 @@
     setIf($form.find('.coa-f-batch'), rec.batch);
     setIf($form.find('.coa-f-lab'), rec.lab ? rec.lab.label : '');
     setIf($form.find('.coa-f-date'), rec.analysis_date);
+    // The certificate's own date text, kept when it could not be read unambiguously.
+    // Via setIf so a scan merge that read none can't blank an already-stored one.
+    setIf($form.find('.coa-f-date-raw'), rec.analysis_date_raw);
     setIf($form.find('.coa-f-purity'), rec.purity_pct);
     setIf($form.find('.coa-f-mass'), rec.mass_mg);
 
@@ -197,6 +201,7 @@
       batch: $form.find('.coa-f-batch').val(),
       lab_label: $form.find('.coa-f-lab').val(),
       analysis_date: $form.find('.coa-f-date').val(),
+      analysis_date_raw: $form.find('.coa-f-date-raw').val(),
       purity_pct: $form.find('.coa-f-purity').val(),
       mass_mg: $form.find('.coa-f-mass').val(),
       variation_id: $form.find('.coa-f-variation').val(),
@@ -585,6 +590,11 @@
     });
 
     // Picking a size auto-fills the (hidden) variation id from the chosen option.
+    // Choosing a real date resolves the ambiguity — drop the kept certificate text.
+    $root.on('change', '.coa-f-date', function () {
+      if ($(this).val()) { $form.find('.coa-f-date-raw').val(''); }
+    });
+
     $root.on('change', '.coa-f-size-select', function () {
       var vid = $(this).find('option:selected').data('variation-id');
       $form.find('.coa-f-variation').val(vid ? vid : '');

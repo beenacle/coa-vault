@@ -118,6 +118,7 @@ final class AdminRenderer
             <h4 class="coa-admin-form-title">' . esc_html__('Add / edit COA batch', 'coa-vault') . '</h4>
             <p class="coa-form-mode description" role="status" aria-live="polite"></p>
             <input type="hidden" class="coa-f-id" value="">
+            <input type="hidden" class="coa-f-date-raw" value="">
             <input type="hidden" class="coa-f-variation" value="">
 
             <div class="coa-media">

@@ -81,7 +81,8 @@ final class ScanController
         $lab_from_url = Normalize::lab_from_url($verify);
         $lab          = $lab_from_url['slug'] !== '' ? $lab_from_url : Normalize::lab((string) ($fields['lab'] ?? ''));
 
-        [$iso, $ok] = Normalize::date((string) ($fields['analysis_date'] ?? ''));
+        $date_text  = sanitize_text_field((string) ($fields['analysis_date'] ?? ''));
+        [$iso, $ok] = Normalize::date($date_text);
         $report     = Report::resolve($attachment_id);
         $path       = get_attached_file($attachment_id);
         $thumb      = wp_get_attachment_image_url($attachment_id, 'thumbnail'); // false for a PDF with no generated preview
@@ -101,7 +102,7 @@ final class ScanController
                 continue;
             }
             $name  = sanitize_text_field((string) ($c['name'] ?? ''));
-            $value = sanitize_text_field((string) ($c['value'] ?? ''));
+            $value = \CoaVault\Data\RecordInput::plain_text((string) ($c['value'] ?? ''));
             // Canonicalize the unit the same way the save path does (RecordInput), so a
             // re-read's "percent"/"Mg" compares equal to a saved "%"/"mg" and doesn't show
             // a phantom characteristics change (and the prefill matches what a save stores).
@@ -157,6 +158,10 @@ final class ScanController
             'batch'          => sanitize_text_field((string) ($fields['batch'] ?? '')),
             'lab'            => ['label' => $lab['label']],
             'analysis_date'  => $ok ? $iso : '',
+            // A date we could not read unambiguously is NOT discarded: the certificate's
+            // own text rides along so the saved record keeps it and the COA list can show
+            // it for correction (see Normalize::date / AdminRenderer::render_list).
+            'analysis_date_raw' => $ok ? '' : $date_text,
             'purity_pct'     => $purity_pct,
             'mass_mg'        => $mass_mg,
             'report'         => [
@@ -186,6 +191,16 @@ final class ScanController
                 $cert_count
             )
             : '';
+
+        // Same for a date that was read but refused as ambiguous — say so rather than
+        // leaving the Date field mysteriously blank.
+        if (!$ok && $date_text !== '') {
+            $warning = trim($warning . ' ' . sprintf(
+                /* translators: %s: the date exactly as printed on the certificate */
+                __('The certificate date “%s” could not be read unambiguously, so it was left blank — pick the date, or set the certificate date order in COA → Settings.', 'coa-vault'),
+                $date_text
+            ));
+        }
 
         wp_send_json_success([
             'prefill' => $prefill,

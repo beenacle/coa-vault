@@ -10,6 +10,9 @@ versions) is in `readme.txt` for WordPress.
   is now left unset, with the certificate's own text kept and shown in the product's COA list so
   you can correct it. Declare your labs' convention under **COA → Settings → Certificate date
   order** (or the `coa_vault_date_order` filter) to have them read automatically again.
+- The scan / import flow says so too: a certificate date it reads but cannot resolve is reported
+  in the review notice and carried onto the saved record, instead of the Date field just appearing
+  blank. Picking a date clears the kept text; re-saving a record never discards it.
 - New: unambiguous US dates now parse — `03/25/2026` is read correctly, as are `-` and `.`
   separators. ISO dates (`2026-06-04`, `20260604`) and dates picked in the editor are unaffected.
 - New: characteristics can record the certificate's **stated limit and pass/fail verdict**

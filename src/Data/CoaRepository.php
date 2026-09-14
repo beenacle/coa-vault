@@ -643,9 +643,11 @@ final class CoaRepository
     private function shape(object $r, array $chars, bool $is_latest): array
     {
         // Rows saved before plain_text() (or by an older version) can hold "&lt;0.05"
-        // where the certificate said "<0.05"; decoding here means they render as the
-        // lab printed them instead of showing the entity. Output is escaped downstream.
-        $plain = static fn (string $s): string => $s === '' ? '' : html_entity_decode($s, ENT_QUOTES, 'UTF-8');
+        // where the certificate said "<0.05". Undo exactly that one substitution so they
+        // render as the lab printed them. Deliberately NOT a full html_entity_decode: a
+        // legacy row could hold "&lt;img onerror=…&gt;", and decoding the "&gt;" too would
+        // turn stored text back into markup. Output is escaped downstream regardless.
+        $plain = static fn (string $s): string => $s === '' ? '' : str_replace('&lt;', '<', $s);
 
         $characteristics = array_map(static function (object $c) use ($plain): array {
             $value = $c->value_num !== null

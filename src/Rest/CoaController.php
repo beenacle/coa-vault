@@ -145,6 +145,9 @@ final class CoaController
             'batch'             => $rec['batch'],
             'lab_label'         => $rec['lab']['label'] ?? '',
             'analysis_date'     => $rec['analysis_date'] ?? '',
+            // Carried so a PATCH that omits the date can't discard the certificate's
+            // original (unparseable) date text stored alongside it.
+            'analysis_date_raw' => $rec['analysis_date_raw'] ?? '',
             'purity_pct'        => $rec['purity_pct'] ?? '',
             'mass_mg'           => $rec['mass_mg'] ?? '',
             'report_file_id'    => $rec['report']['file_id'] ?? '',
