@@ -424,7 +424,7 @@ final class CoaRepository
             "SELECT r.* FROM {$t} r
              JOIN {$wpdb->posts} p ON p.ID = r.product_id
              WHERE r.source_present = 1 AND p.post_type = 'product' AND p.post_status = 'publish'
-             ORDER BY p.post_title ASC, r.size_token ASC, r.analysis_date DESC, r.id DESC"
+             ORDER BY p.post_title ASC, LENGTH(r.size_token) ASC, r.size_token ASC, r.analysis_date DESC, r.id DESC"
         );
 
         $grouped = [];

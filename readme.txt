@@ -72,9 +72,10 @@ stays available so your template can still resolve COAs.
 
 = What happens to my data when I uninstall? =
 
-Nothing, by default — COA records are hard to rebuild, so the tables are preserved on
-delete. They are only dropped if you explicitly opt in via the
-`coa_vault_drop_data_on_uninstall` option.
+Your COA records stay, by default — they are hard to rebuild, so the tables and settings
+are preserved on delete. They are only dropped if you explicitly opt in via the
+`coa_vault_drop_data_on_uninstall` option. An API key saved in Settings is always removed;
+a key defined in `wp-config.php` is untouched.
 
 = How do I import existing certificates? =
 
@@ -93,7 +94,8 @@ purity, mass and analysis date off the document; without a key you fill those in
 = Is the AI reading required, and is my data sent anywhere? =
 
 It is optional and off until you add a key. When enabled, the certificate is sent to the
-Anthropic API to extract the fields (a fraction of a cent per certificate). Only the
+Anthropic API to extract the fields (around a cent or less per certificate with the default
+model). Only the
 certificate file you scan is sent, with a fixed instruction, and nothing else from your store;
 the file itself can contain anything printed on it, so review your certificates before
 enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
@@ -102,11 +104,12 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 == Changelog ==
 
 = 0.3.1 =
-* Fix (storefront): each batch row now shows its size first (25g · Lab · date), so the per-size
-  "Latest" tags on the archive, or before a size is picked, are no longer ambiguous.
-* Docs: clearer description of the optional AI reading. Only the scanned certificate file is
-  sent, and it can contain anything printed on it; the "public lab documents" assurance is removed.
-* Docs: reworded the uninstall FAQ.
+* Fix (storefront): a batch row for a specific size now shows that size, named as in the size picker (25 g · Lab · date), so per-size "Latest" tags on the archive, or before a size is picked, are no longer ambiguous.
+* Fix (storefront): the COA archive lists sizes in numeric order (5 g before 25 g), the same as the product page.
+* Fix (storefront): a COA saved for a specific size is no longer labelled "All sizes" when an old whole-product flag was left on it.
+* Privacy: the AI reading request now sends its own user agent instead of WordPress's default, which includes your site address.
+* Docs: clearer description of the optional AI reading. Only the scanned certificate file is sent, with a fixed instruction, and it can contain anything printed on it; the "public lab documents" assurance is removed.
+* Docs: the uninstall FAQ now says an API key saved in Settings is always removed.
 
 = 0.3.0 =
 * Fix (data correctness): an ambiguous certificate date such as 06/04/2026 is no longer guessed as

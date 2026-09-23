@@ -49,6 +49,18 @@ final class VariationInjector
      */
     private function size_token_for(\WC_Product $variation): string
     {
+        return self::size_attribute($variation)[0];
+    }
+
+    /**
+     * The size token AND the attribute it came from, so the storefront can label a
+     * batch with the store's own wording ("25 g", "10 Vials Kit") rather than the
+     * normalized matching key. Shared with RenderService so both read sizes the same way.
+     *
+     * @return array{0:string,1:string} [size_token, attribute name], or ['', ''] when none
+     */
+    public static function size_attribute(\WC_Product $variation): array
+    {
         $attributes = $variation->get_attributes();
 
         foreach ($attributes as $name => $value) {
@@ -60,11 +72,11 @@ final class VariationInjector
             }
             $token = Normalize::size_token($value);
             if ($token !== '' && preg_match('/\d/', $token)) {
-                return $token;
+                return [$token, (string) $name];
             }
         }
 
-        foreach ($attributes as $value) {
+        foreach ($attributes as $name => $value) {
             if (!is_string($value) || $value === '') {
                 continue;
             }
@@ -73,10 +85,10 @@ final class VariationInjector
             }
             $token = Normalize::size_token($value);
             if ($token !== '') {
-                return $token;
+                return [$token, (string) $name];
             }
         }
 
-        return '';
+        return ['', ''];
     }
 }

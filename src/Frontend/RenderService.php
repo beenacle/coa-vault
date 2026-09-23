@@ -13,6 +13,9 @@ use CoaVault\Data\CoaRepository;
  */
 final class RenderService
 {
+    /** @var array<int,array<string,string>> product_id => [size_token => store's size label] */
+    private array $size_labels = [];
+
     public function __construct(private CoaRepository $records)
     {
     }
@@ -136,10 +139,16 @@ final class RenderService
         // Disclosure label: batch, then a quiet size · lab · date line + status tags.
         // Size leads so rows for different sizes can be told apart: on the archive, or
         // before a size is picked, each size carries its own "Latest" tag, and without
-        // the size two "Latest" rows read as a contradiction.
-        $sub = [];
-        if (!empty($r['size_token']) && empty($r['applies_all_sizes'])) {
-            $sub[] = esc_html((string) $r['size_token']);
+        // the size two "Latest" rows read as a contradiction. A record with a size is
+        // that size's certificate (resolve and "Latest" key off size_token), so the size
+        // wins over a stale all-sizes flag — the same precedence as the admin list.
+        $size = (string) ($r['size_token'] ?? '');
+        $sub  = [];
+        if ($size !== '') {
+            $label = $this->size_label((int) $r['product_id'], $size);
+            if ($label !== '') {
+                $sub[] = esc_html($label);
+            }
         }
         if (!empty($r['lab']['label'])) {
             $sub[] = esc_html($r['lab']['label']);
@@ -152,7 +161,7 @@ final class RenderService
         if ($sub !== []) {
             $summary .= ' <span class="coa-vault-sub">' . implode(' &middot; ', $sub) . '</span>';
         }
-        if (!empty($r['applies_all_sizes'])) {
+        if ($size === '' && !empty($r['applies_all_sizes'])) {
             $summary .= ' <span class="coa-vault-tag">' . esc_html__('All sizes', 'coa-vault') . '</span>';
         }
         if ($latest) {
@@ -227,6 +236,40 @@ final class RenderService
     }
 
     /** Format a measured number: trim trailing fractional zeros without mangling whole numbers (10.0 stays "10", not "1"). */
+    /**
+     * The size as the store names it ("25 g", "10 Vials Kit"), read from the variation
+     * that carries this token, so the row matches the size picker. size_token is a
+     * normalized matching key (first number, mg by default) and can misread a kit or
+     * multi-pack label, so it is shown only as a fallback, and only when it reads as a
+     * plain amount and unit. One lookup per product per request.
+     */
+    private function size_label(int $product_id, string $token): string
+    {
+        if (!isset($this->size_labels[$product_id])) {
+            $map     = [];
+            $product = $product_id > 0 && function_exists('wc_get_product') ? wc_get_product($product_id) : null;
+            if ($product instanceof \WC_Product && $product->is_type('variable')) {
+                foreach ($product->get_children() as $variation_id) {
+                    $variation = wc_get_product((int) $variation_id);
+                    if (!$variation instanceof \WC_Product) {
+                        continue;
+                    }
+                    [$t, $attribute] = VariationInjector::size_attribute($variation);
+                    if ($t !== '' && !isset($map[$t])) {
+                        $map[$t] = trim(wp_strip_all_tags((string) $variation->get_attribute($attribute)));
+                    }
+                }
+            }
+            $this->size_labels[$product_id] = $map;
+        }
+
+        $label = $this->size_labels[$product_id][$token] ?? '';
+        if ($label !== '') {
+            return $label;
+        }
+        return preg_match('/^\d+(\.\d+)?(mcg|mg|kg|g|iu|ml)$/', $token) === 1 ? $token : '';
+    }
+
     private static function num($value): string
     {
         $s = (string) $value;

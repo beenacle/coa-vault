@@ -4,7 +4,7 @@
  *
  * Data is PRESERVED by default. Tables are only dropped if the site owner has
  * explicitly opted in via the `coa_vault_drop_data_on_uninstall` option — COA
- * data is compliance-relevant and should never vanish on an accidental delete.
+ * records are hard to rebuild and should never vanish on an accidental delete.
  *
  * The plugin provisions per-site on a network (Installer::on_new_site), so the
  * cleanup runs per-site too — otherwise every secondary blog keeps its tables,
@@ -21,7 +21,7 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 
 /**
  * Remove the current site's footprint. The Anthropic API key is a live secret with
- * no compliance reason to survive removal, so it is always purged; the COA tables
+ * no reason to survive removal, so it is always purged; the COA tables
  * and the remaining options are dropped only when the owner opted in.
  */
 function coa_vault_uninstall_site(): void

@@ -4,14 +4,12 @@ Notable changes to COA Vault. Each version is a GitHub Release; the same log (re
 versions) is in `readme.txt` for WordPress.
 
 ## 0.3.1
-- Fix (storefront): each batch row now shows its size first (`25g · Lab · date`). On the
-  archive, or before a size is picked, every size carries its own "Latest" tag, and without the
-  size two "Latest" rows were ambiguous.
-- Docs: the optional AI reading is described precisely. Only the scanned certificate file is sent
-  to the Anthropic API, with a fixed instruction, and nothing else from the store; the file can
-  contain anything printed on it, so review certificates before enabling it. The "public lab
-  documents, not customer data" assurance is removed from the readme and the Settings screen.
-- Docs: the uninstall FAQ no longer calls COA data "compliance-relevant".
+- Fix (storefront): a batch row for a specific size now shows that size, named as in the product's size picker (`25 g · Lab · date`). On the archive, or before a size is picked, every size carries its own "Latest" tag, and without the size two "Latest" rows were ambiguous. The normalized size key is shown only when no variation carries the size, and only when it reads as a plain amount and unit.
+- Fix (storefront): the COA archive (`[coa_vault all="true"]`) lists sizes in numeric order (5 g before 25 g), the same as the product page.
+- Fix (storefront): a COA saved for a specific size is no longer labelled "All sizes" when an old whole-product flag was left on it; the size wins, as in the admin list.
+- Privacy: the AI reading request sends `COA-Vault/0.3.1` as its user agent instead of WordPress's default, which includes the site address. Only the certificate file and a fixed instruction are sent.
+- Docs: the optional AI reading is described precisely: only the scanned certificate file is sent to the Anthropic API, with a fixed instruction, and nothing else from the store; the file can contain anything printed on it, so review certificates before enabling it. The "public lab documents, not customer data" assurance is removed from the readme and the Settings screen. The readme's cost wording now matches Settings ("around a cent or less per certificate").
+- Docs: the uninstall FAQ no longer calls COA data "compliance-relevant", and says an API key saved in Settings is always removed.
 
 ## 0.3.0
 - **Fix (data correctness): an ambiguous certificate date is no longer guessed.** `06/04/2026`
