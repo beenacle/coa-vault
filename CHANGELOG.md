@@ -3,6 +3,13 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.1
+- Docs: the optional AI reading is described precisely. Only the scanned certificate file is sent
+  to the Anthropic API, with a fixed instruction, and nothing else from the store; the file can
+  contain anything printed on it, so review certificates before enabling it. The "public lab
+  documents, not customer data" assurance is removed from the readme and the Settings screen.
+- Docs: the uninstall FAQ no longer calls COA data "compliance-relevant".
+
 ## 0.3.0
 - **Fix (data correctness): an ambiguous certificate date is no longer guessed.** `06/04/2026`
   is June 4 to a US lab and 6 April to an EU one, and the parser silently assumed day-first —

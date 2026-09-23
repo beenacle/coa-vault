@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,7 +72,7 @@ stays available so your template can still resolve COAs.
 
 = What happens to my data when I uninstall? =
 
-Nothing, by default — COA data is compliance-relevant, so the tables are preserved on
+Nothing, by default — COA records are hard to rebuild, so the tables are preserved on
 delete. They are only dropped if you explicitly opt in via the
 `coa_vault_drop_data_on_uninstall` option.
 
@@ -93,11 +93,18 @@ purity, mass and analysis date off the document; without a key you fill those in
 = Is the AI reading required, and is my data sent anywhere? =
 
 It is optional and off until you add a key. When enabled, the certificate is sent to the
-Anthropic API to extract the fields (a fraction of a cent per certificate). Certificates
-are public lab documents, not customer data. Defining `COA_VAULT_ANTHROPIC_KEY` in
+Anthropic API to extract the fields (a fraction of a cent per certificate). Only the
+certificate file you scan is sent, with a fixed instruction, and nothing else from your store;
+the file itself can contain anything printed on it, so review your certificates before
+enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.1 =
+* Docs: clearer description of the optional AI reading. Only the scanned certificate file is
+  sent, and it can contain anything printed on it; the "public lab documents" assurance is removed.
+* Docs: reworded the uninstall FAQ.
 
 = 0.3.0 =
 * Fix (data correctness): an ambiguous certificate date such as 06/04/2026 is no longer guessed as

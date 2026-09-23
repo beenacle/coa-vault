@@ -323,6 +323,6 @@ final class Settings
         if ($stored) {
             echo '<p class="description">' . esc_html__('A key is saved (shown masked in the field). Leave it blank to keep that key, or paste a new key to replace it.', 'coa-vault') . '</p>';
         }
-        echo '<p class="description">' . esc_html__('Used only for the scan feature; sub-cent per certificate. Stored in the database — for stronger secrecy define COA_VAULT_ANTHROPIC_KEY in wp-config.php instead. Certificates are public lab documents, not customer data.', 'coa-vault') . '</p>';
+        echo '<p class="description">' . esc_html__('Used only for the scan feature; around a cent or less per certificate. Stored in the database — for stronger secrecy define COA_VAULT_ANTHROPIC_KEY in wp-config.php instead. Only the certificate file you scan is sent, and it can contain anything printed on it.', 'coa-vault') . '</p>';
     }
 }
