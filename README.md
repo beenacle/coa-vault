@@ -10,7 +10,7 @@ Plugin-owned custom tables, simple **and** variable product support, multi-COA p
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.2.3.** Core is self-contained and distribution-oriented. Adds a sortable
+> **Status: v0.3.1.** Core is self-contained and distribution-oriented. Adds a sortable
 > catalog list, a smarter scan/import (prefers the real lab link, warns on multi-cert
 > files), and a **Re-read data** action that re-runs the AI reader on an already-attached
 > certificate and shows a review/diff to backfill or correct figures. Legacy data import
