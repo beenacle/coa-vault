@@ -133,8 +133,14 @@ final class RenderService
         $latest = !empty($r['is_latest']);
         $title  = $r['batch'] !== '' ? $r['batch'] : __('Batch', 'coa-vault');
 
-        // Disclosure label: batch, then a quiet lab · date line + status tags.
+        // Disclosure label: batch, then a quiet size · lab · date line + status tags.
+        // Size leads so rows for different sizes can be told apart: on the archive, or
+        // before a size is picked, each size carries its own "Latest" tag, and without
+        // the size two "Latest" rows read as a contradiction.
         $sub = [];
+        if (!empty($r['size_token']) && empty($r['applies_all_sizes'])) {
+            $sub[] = esc_html((string) $r['size_token']);
+        }
         if (!empty($r['lab']['label'])) {
             $sub[] = esc_html($r['lab']['label']);
         }

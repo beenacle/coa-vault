@@ -4,6 +4,9 @@ Notable changes to COA Vault. Each version is a GitHub Release; the same log (re
 versions) is in `readme.txt` for WordPress.
 
 ## 0.3.1
+- Fix (storefront): each batch row now shows its size first (`25g · Lab · date`). On the
+  archive, or before a size is picked, every size carries its own "Latest" tag, and without the
+  size two "Latest" rows were ambiguous.
 - Docs: the optional AI reading is described precisely. Only the scanned certificate file is sent
   to the Anthropic API, with a fixed instruction, and nothing else from the store; the file can
   contain anything printed on it, so review certificates before enabling it. The "public lab

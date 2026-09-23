@@ -102,6 +102,8 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 == Changelog ==
 
 = 0.3.1 =
+* Fix (storefront): each batch row now shows its size first (25g · Lab · date), so the per-size
+  "Latest" tags on the archive, or before a size is picked, are no longer ambiguous.
 * Docs: clearer description of the optional AI reading. Only the scanned certificate file is
   sent, and it can contain anything printed on it; the "public lab documents" assurance is removed.
 * Docs: reworded the uninstall FAQ.
