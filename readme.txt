@@ -105,7 +105,7 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 
 = 0.3.1 =
 * Fix (storefront): a batch row for a specific size now shows that size, named as in the size picker (25 g · Lab · date), so per-size "Latest" tags on the archive, or before a size is picked, are no longer ambiguous.
-* Fix (storefront): the COA archive lists sizes in numeric order (5 g before 25 g), the same as the product page.
+* Fix (storefront): the COA archive lists each product's sizes in the same order as the product page, shorter sizes first (5 g before 25 g).
 * Fix (storefront): a COA saved for a specific size is no longer labelled "All sizes" when an old whole-product flag was left on it.
 * Privacy: the AI reading request now sends its own user agent instead of WordPress's default, which includes your site address.
 * Docs: clearer description of the optional AI reading. Only the scanned certificate file is sent, with a fixed instruction, and it can contain anything printed on it; the "public lab documents" assurance is removed.
