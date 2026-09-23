@@ -13,6 +13,9 @@ use CoaVault\Data\CoaRepository;
  */
 final class RenderService
 {
+    /** @var array<int,array<string,string>> product_id => [size_token => store's size label] */
+    private array $size_labels = [];
+
     public function __construct(private CoaRepository $records)
     {
     }
@@ -133,8 +136,17 @@ final class RenderService
         $latest = !empty($r['is_latest']);
         $title  = $r['batch'] !== '' ? $r['batch'] : __('Batch', 'coa-vault');
 
-        // Disclosure label: batch, then a quiet lab · date line + status tags.
-        $sub = [];
+        // Disclosure label: batch, then a quiet size · lab · date line + status tags.
+        // Size leads so rows for different sizes can be told apart: on the archive, or
+        // before a size is picked, each size carries its own "Latest" tag, and without
+        // the size two "Latest" rows read as a contradiction. A record with a size is
+        // that size's certificate (resolve and "Latest" key off size_token), so the size
+        // wins over a stale all-sizes flag — the same precedence as the admin list.
+        $size = (string) ($r['size_token'] ?? '');
+        $sub  = [];
+        if ($size !== '') {
+            $sub[] = esc_html($this->size_label($r));
+        }
         if (!empty($r['lab']['label'])) {
             $sub[] = esc_html($r['lab']['label']);
         }
@@ -146,7 +158,7 @@ final class RenderService
         if ($sub !== []) {
             $summary .= ' <span class="coa-vault-sub">' . implode(' &middot; ', $sub) . '</span>';
         }
-        if (!empty($r['applies_all_sizes'])) {
+        if ($size === '' && !empty($r['applies_all_sizes'])) {
             $summary .= ' <span class="coa-vault-tag">' . esc_html__('All sizes', 'coa-vault') . '</span>';
         }
         if ($latest) {
@@ -218,6 +230,84 @@ final class RenderService
         return '<li class="coa-vault-item"><details' . ($latest ? ' open' : '') . '>'
             . $summary . $dl . $report
             . '</details></li>';
+    }
+
+    /**
+     * The size as the store names it ("25 g", "10 Vials Kit"), so the row matches the
+     * size picker. size_token is a normalized matching key (first number, mg by
+     * default), and a kit or multi-pack label can share one with a plain vial, so the
+     * record's own variation names it first; otherwise the product's published
+     * variations do, unless two of them name that token differently. Failing both,
+     * the stored token is shown, as in the admin list.
+     *
+     * @param array<string,mixed> $r
+     */
+    private function size_label(array $r): string
+    {
+        $token      = (string) $r['size_token'];
+        $product_id = (int) $r['product_id'];
+
+        $variation_id = (int) ($r['variation_id'] ?? 0);
+        if ($variation_id > 0 && function_exists('wc_get_product')) {
+            $variation = wc_get_product($variation_id);
+            if ($variation instanceof \WC_Product && $variation->get_parent_id() === $product_id) {
+                [$t, $attribute] = VariationInjector::size_attribute($variation);
+                $label           = $t === $token ? self::attribute_label($variation, $attribute) : '';
+                if ($label !== '') {
+                    return $label;
+                }
+            }
+        }
+
+        $label = $this->size_labels_for($product_id)[$token] ?? '';
+        return $label !== '' ? $label : $token;
+    }
+
+    /**
+     * size_token => label across a variable product's published variations, built once
+     * per product per request. A token two variations label differently maps to ''
+     * (ambiguous), so neither name is shown for the other's certificate.
+     *
+     * @return array<string,string>
+     */
+    private function size_labels_for(int $product_id): array
+    {
+        if (isset($this->size_labels[$product_id])) {
+            return $this->size_labels[$product_id];
+        }
+
+        $map     = [];
+        $product = $product_id > 0 && function_exists('wc_get_product') ? wc_get_product($product_id) : null;
+        if ($product instanceof \WC_Product && $product->is_type('variable')) {
+            $children = array_map('intval', $product->get_children());
+            if ($children !== [] && function_exists('_prime_post_caches')) {
+                _prime_post_caches($children, false, true); // one posts + one meta query, not one per variation
+            }
+            foreach ($children as $child_id) {
+                $variation = wc_get_product($child_id);
+                if (!$variation instanceof \WC_Product || $variation->get_status() !== 'publish') {
+                    continue;
+                }
+                [$t, $attribute] = VariationInjector::size_attribute($variation);
+                if ($t === '') {
+                    continue;
+                }
+                $label = self::attribute_label($variation, $attribute);
+                if (!isset($map[$t])) {
+                    $map[$t] = $label;
+                } elseif ($map[$t] !== $label) {
+                    $map[$t] = '';
+                }
+            }
+        }
+
+        return $this->size_labels[$product_id] = $map;
+    }
+
+    /** A variation's attribute as shoppers see it: the term name for a global attribute, else the text. */
+    private static function attribute_label(\WC_Product $variation, string $attribute): string
+    {
+        return trim(wp_strip_all_tags((string) $variation->get_attribute($attribute)));
     }
 
     /** Format a measured number: trim trailing fractional zeros without mangling whole numbers (10.0 stays "10", not "1"). */

@@ -3,6 +3,14 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.1
+- Fix (storefront): a batch row for a specific size now shows that size, named as in the product's size picker (25 g · Lab · date). On the archive, or before a size is picked, every size carries its own "Latest" tag, and without the size two "Latest" rows were ambiguous. The name comes from the certificate's own variation, else from the product's published variations; where none carries the size, or two name it differently, the stored size key is shown, as in the admin list.
+- Fix (storefront): the COA archive ([coa_vault all="true"]) lists each product's sizes in the same order as the product page, shorter sizes first, so 5 g comes before 25 g.
+- Fix (storefront): a COA saved for a specific size is no longer labelled "All sizes" when an old whole-product flag was left on it; the size wins, as in the admin list.
+- Privacy: the AI reading request sends COA-Vault/0.3.1 as its user agent instead of WordPress's default, which includes the site address. Only the certificate file and a fixed instruction are sent.
+- Docs: the optional AI reading is described precisely: only the scanned certificate file is sent to the Anthropic API, with a fixed instruction, and nothing else from the store; the file can contain anything printed on it, so review certificates before enabling it. The "public lab documents, not customer data" assurance is removed from the readme and the Settings screen. The readme's cost wording now matches Settings ("around a cent or less per certificate").
+- Docs: the uninstall FAQ no longer calls COA data "compliance-relevant", and says an API key saved in Settings is always removed.
+
 ## 0.3.0
 - **Fix (data correctness): an ambiguous certificate date is no longer guessed.** `06/04/2026`
   is June 4 to a US lab and 6 April to an EU one, and the parser silently assumed day-first —

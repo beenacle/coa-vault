@@ -65,13 +65,16 @@ final class ClaudeClient
         ];
 
         $response = wp_remote_post(self::ENDPOINT, [
-            'timeout' => 30,
-            'headers' => [
+            'timeout'    => 30,
+            // WordPress's default User-Agent carries the site URL; the readme promises that
+            // only the certificate and a fixed instruction leave the store, so send our own.
+            'user-agent' => 'COA-Vault/' . COA_VAULT_VERSION,
+            'headers'    => [
                 'x-api-key'         => $this->api_key,
                 'anthropic-version' => self::API_VERSION,
                 'content-type'      => 'application/json',
             ],
-            'body' => wp_json_encode($body),
+            'body'       => wp_json_encode($body),
         ]);
 
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
