@@ -10,7 +10,7 @@ Plugin-owned custom tables, simple **and** variable product support, multi-COA p
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.3.1.** Core is self-contained and distribution-oriented. Legacy data import
+> **Status: v0.3.2.** Core is self-contained and distribution-oriented. Legacy data import
 > lives in a separate, optional **COA Vault — Migration** companion plugin, so the
 > shippable core carries no site-specific code. What changed in each release is in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -58,8 +58,9 @@ Activate the plugin — tables are created on activation and kept current on upd
 - **Scan / import:** on the product COA box, drop a certificate image/PDF — the QR verify link
   is read in-browser, the file is sideloaded, and a new COA is **pre-filled for review** (never
   auto-saved). Set an Anthropic key (COA → Settings, or the `COA_VAULT_ANTHROPIC_KEY` constant)
-  to also read batch/purity/mass/date off the document via `claude-haiku-4-5` (override with the
-  `coa_vault_claude_model` filter); without a key, QR + file only.
+  to also read batch/purity/mass/date off the document via `claude-haiku-5-5` at `low` effort
+  (override the model with the `COA_VAULT_CLAUDE_MODEL` constant or `coa_vault_claude_model` filter,
+  the effort with the `coa_vault_claude_effort` filter); without a key, QR + file only.
 
 ## Decisions baked in
 - **Storage:** custom tables (not ACF/CPT/meta).
