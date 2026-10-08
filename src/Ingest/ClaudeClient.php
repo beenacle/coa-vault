@@ -21,8 +21,9 @@ final class ClaudeClient
 
     // Models that predate the effort parameter and reject it with a 400 (which would turn
     // every scan into a silent manual-entry fallback). Of the models still served that is
-    // only Claude Haiku 4.5; the others are retired and listed for completeness. Every
-    // later model accepts effort, so new IDs need no entry here.
+    // Claude Haiku 4.5 and the deprecated Claude Sonnet 4.5 (retiring 2026-11-30); the rest
+    // are retired and listed for completeness. Every later model accepts the parameter —
+    // though not every level, see below — so new IDs need no entry here.
     private const NO_EFFORT_PREFIXES = [
         'claude-haiku-4-5',
         'claude-sonnet-4-5',
@@ -31,6 +32,12 @@ final class ClaudeClient
         'claude-sonnet-4-20250514',
         'claude-3',
     ];
+
+    // Effort-capable models that lack the top levels. A level a model doesn't offer is
+    // stepped DOWN to `high` (never up), so an ambitious coa_vault_claude_effort value
+    // degrades instead of failing every scan with a 400.
+    private const NO_XHIGH_PREFIXES = ['claude-opus-4-5', 'claude-opus-4-6', 'claude-sonnet-4-6'];
+    private const NO_MAX_PREFIXES   = ['claude-opus-4-5'];
 
     // Anthropic limits: 10 MB per image and ~32 MB per request, measured on the
     // BASE64 payload (which is ~33% larger than the raw bytes). Guard against the
@@ -160,8 +167,10 @@ final class ClaudeClient
      * into a fixed JSON shape is simple, high-volume extraction — what the docs recommend
      * `low` for — and Haiku 4.5 did it with no thinking at all. Newer models think by
      * default (Haiku 5.5 at `medium`), which only adds latency and cost here and eats into
-     * max_tokens. Filterable via `coa_vault_claude_effort` (low|medium|high|xhigh|max);
-     * return '' to send none and use the model's own default.
+     * max_tokens. Filterable via `coa_vault_claude_effort` (low|medium|high|xhigh|max;
+     * the filter also receives the model); return '' to send none and use the model's own
+     * default. `xhigh` and `max` exist only on some models — where a model lacks the level
+     * asked for, `high` is sent instead.
      */
     private static function effort(string $model): string
     {
@@ -169,12 +178,25 @@ final class ClaudeClient
         if (!in_array($effort, ['low', 'medium', 'high', 'xhigh', 'max'], true)) {
             return '';
         }
-        foreach (self::NO_EFFORT_PREFIXES as $prefix) {
-            if (str_starts_with($model, $prefix)) {
-                return '';
-            }
+        if (self::has_prefix($model, self::NO_EFFORT_PREFIXES)) {
+            return '';
+        }
+        if (($effort === 'xhigh' && self::has_prefix($model, self::NO_XHIGH_PREFIXES))
+            || ($effort === 'max' && self::has_prefix($model, self::NO_MAX_PREFIXES))) {
+            return 'high';
         }
         return $effort;
+    }
+
+    /** @param string[] $prefixes */
+    private static function has_prefix(string $model, array $prefixes): bool
+    {
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($model, $prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @return array<string,mixed> */

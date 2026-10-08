@@ -6,15 +6,19 @@ versions) is in `readme.txt` for WordPress.
 ## 0.3.2
 - Change: certificates are now read with **Claude Haiku 5.5** (`claude-haiku-5-5`) instead of
   Claude Haiku 4.5. It reads better on Anthropic's benchmarks and costs about a tenth as much per
-  token ($0.10 / $0.50 per million input / output tokens for a certificate-sized request, against
-  $1 / $5).
+  token: $0.10 / $0.50 per million input / output tokens for prompts up to 100,000 tokens (any normal
+  certificate), against $1 / $5. Very long PDFs over that are billed at $0.50 / $2.50, half the old
+  price. Its tokenizer counts the same text about 30% higher, so a read costs a little more than a
+  tenth of what it did.
 - Change: the read request now leaves room for the model's thinking. Haiku 5.5 thinks by default
   and its thinking counts toward the output cap, so the 4096-token cap tuned for Haiku 4.5 could
   have cut a dense certificate off mid-read — reported as "nothing could be read". The cap is now
   16,000 tokens, and the request asks for `low` effort, the level the docs recommend for simple
   extraction. Override with the new `coa_vault_claude_effort` filter (`low` | `medium` | `high` |
-  `xhigh` | `max`, or `''` to use the model's default). Effort is never sent to Claude Haiku 4.5,
-  which rejects it, so a site pinned to that model keeps working.
+  `xhigh` | `max`, or `''` to use the model's default; it also receives the model). `xhigh` and
+  `max` exist only on some models — where the chosen model lacks the level, `high` is sent instead.
+  Effort is never sent to models that reject it (Claude Haiku 4.5, and the deprecated Claude Sonnet
+  4.5), so a site pinned to one of those keeps working.
 - To stay on Haiku 4.5, set `define('COA_VAULT_CLAUDE_MODEL', 'claude-haiku-4-5');` in
   `wp-config.php` or use the `coa_vault_claude_model` filter.
 

@@ -105,10 +105,11 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 
 = 0.3.2 =
 * Change: certificates are read with Claude Haiku 5.5 instead of Claude Haiku 4.5. Better reads at
-  about a tenth of the price per token.
+  about a tenth of Haiku 4.5's per-token price for a normal certificate ($0.10 / $0.50 per million
+  input / output tokens for prompts up to 100,000 tokens; $0.50 / $2.50 above that).
 * Change: the read request leaves room for the model's thinking (output cap 16,000 tokens) and asks
   for low effort, so dense certificates aren't cut off mid-read. New filter coa_vault_claude_effort
-  overrides the effort level. To stay on Haiku 4.5, define COA_VAULT_CLAUDE_MODEL as
+  overrides the effort level; a level the chosen model doesn't offer falls back to high. To stay on Haiku 4.5, define COA_VAULT_CLAUDE_MODEL as
   claude-haiku-4-5 in wp-config.php.
 
 = 0.3.1 =
