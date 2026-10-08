@@ -22,6 +22,9 @@ namespace CoaVault\Update;
 final class GitHubUpdater
 {
     private const API = 'https://api.github.com/repos/%s/%s/releases/latest';
+    // The released copy of a file, by tag — raw.githubusercontent.com, so it doesn't spend
+    // the 60-requests-an-hour unauthenticated API quota the release lookup above uses.
+    private const RAW = 'https://raw.githubusercontent.com/%s/%s/%s/%s';
     private const TTL = 6 * HOUR_IN_SECONDS;
 
     private string $plugin_file;
@@ -89,7 +92,7 @@ final class GitHubUpdater
             'package'      => $release['package'],
             'icons'        => $this->icons(),
             'banners'      => [],
-            'tested'       => $release['tested'],
+            'tested'       => self::tested_for_running_wp($release['tested']),
             'requires'     => $release['requires'],
             'requires_php' => $release['requires_php'],
         ];
@@ -133,7 +136,7 @@ final class GitHubUpdater
             'icons'         => $this->icons(),
             'requires'      => $release['requires'],
             'requires_php'  => $release['requires_php'],
-            'tested'        => $release['tested'],
+            'tested'        => self::tested_for_running_wp($release['tested']),
             'last_updated'  => $release['date'],
             'sections'      => [
                 'description' => 'Certificate of Analysis (COA) management for WooCommerce — custom-table storage, simple + variable product support, multi-COA per size/variation, REST API, and a block/shortcode/auto-inject frontend.',
@@ -252,10 +255,72 @@ final class GitHubUpdater
             'html_url'     => (string) ($body['html_url'] ?? ''),
             'date'         => (string) ($body['published_at'] ?? ''),
             'changelog'    => $this->render_changelog((string) ($body['body'] ?? '')),
+        ] + $this->release_headers((string) $body['tag_name']);
+    }
+
+    /**
+     * The release's OWN "Requires at least" / "Requires PHP" / "Tested up to", read from
+     * the main plugin file at the release tag.
+     *
+     * These used to come from the INSTALLED copy, which describes the wrong version:
+     * WordPress uses an update's requires_php to block updating on a too-old PHP and its
+     * requires to block a too-old WordPress, so a release that raised either would have
+     * been offered (and auto-updated) onto sites it breaks; and its tested drives the
+     * "Compatibility with WordPress X" line. Any failure falls back to the installed
+     * values, so a fetch problem never withholds an update.
+     *
+     * @return array{requires:string,requires_php:string,tested:string}
+     */
+    private function release_headers(string $tag): array
+    {
+        $out = [
             'requires'     => $this->plugin_header('requires', '6.4'),
             'requires_php' => $this->plugin_header('requires_php', '8.1'),
             'tested'       => $this->plugin_header('tested', '6.8'),
         ];
+
+        $url      = sprintf(self::RAW, rawurlencode($this->owner), rawurlencode($this->repo), rawurlencode($tag), rawurlencode(basename($this->plugin_file)));
+        $response = wp_remote_get($url, [
+            'timeout' => 10,
+            'headers' => ['User-Agent' => 'COA-Vault-Updater/' . $this->version],
+        ]);
+        if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+            return $out;
+        }
+
+        // Same header grammar and 8 KB window as core's get_file_data().
+        $file = substr((string) wp_remote_retrieve_body($response), 0, 8 * KB_IN_BYTES);
+        $labels = ['requires' => 'Requires at least', 'requires_php' => 'Requires PHP', 'tested' => 'Tested up to'];
+        foreach ($labels as $key => $label) {
+            if (preg_match('/^(?:[ \t]*<\?php)?[ \t\/*#@]*' . preg_quote($label, '/') . ':(.*)$/mi', $file, $m)) {
+                $value = trim(_cleanup_header_comment($m[1]));
+                if (preg_match('/^\d+(\.\d+)*$/', $value)) { // a version, or keep the fallback
+                    $out[$key] = $value;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * "Tested up to: 7.1" means the whole 7.1 branch, but WordPress compares it with
+     * version_compare() against the FULL running version — so on 7.1.3 a bare "7.1"
+     * reads "Not tested". WordPress.org expands the declared branch to its latest point
+     * release server-side; a self-hosted updater has to do the same. Only the running
+     * branch is widened: "7.1" on WordPress 7.2 still (correctly) reads "Not tested".
+     */
+    private static function tested_for_running_wp(string $tested): string
+    {
+        global $wp_version;
+        $running = preg_replace('/-.*$/', '', (string) $wp_version) ?? ''; // core's own trim
+        if ($tested === '' || $running === '') {
+            return $tested;
+        }
+        $branch = static fn (string $v): string => implode('.', array_slice(explode('.', $v), 0, 2));
+        if ($branch($tested) === $branch($running) && version_compare($tested, $running, '<')) {
+            return $running;
+        }
+        return $tested;
     }
 
     /** Read a value from the installed plugin's file header (cached for the request). */

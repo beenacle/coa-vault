@@ -3,6 +3,21 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.3
+- Fix: Dashboard → Updates reported "Compatibility with WordPress 7.1.3: Not tested". The plugin
+  is now declared tested up to **WordPress 7.1**, and the updater reports that to each site as the
+  site's own point release (`7.1` → `7.1.3`), the expansion WordPress.org performs for directory
+  plugins — WordPress compares the value against the full running version, so a bare `7.1` would
+  still have read "Not tested" on 7.1.3.
+- Fix: the updater described an update using the **installed** copy's "Requires PHP", "Requires at
+  least" and "Tested up to" instead of the release's. WordPress uses an update's PHP and WordPress
+  minimums to block it on servers that can't run it, so a release that raised either would have
+  been offered — and auto-updated — onto sites it breaks. They are now read from the release tag
+  (one small extra request, cached with the release for 6 hours), falling back to the installed
+  values if that fetch fails so an update is never withheld.
+- Note: this release itself is still announced by the previous version's updater, so updating
+  *to* 0.3.3 shows "Not tested" one last time; updates after it show the correct status.
+
 ## 0.3.2
 - Change: certificates are now read with **Claude Haiku 5.5** (`claude-haiku-5-5`) instead of
   Claude Haiku 4.5. It reads better on Anthropic's benchmarks and costs about a tenth as much per

@@ -10,7 +10,7 @@ Plugin-owned custom tables, simple **and** variable product support, multi-COA p
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.3.2.** Core is self-contained and distribution-oriented. Legacy data import
+> **Status: v0.3.3.** Core is self-contained and distribution-oriented. Legacy data import
 > lives in a separate, optional **COA Vault — Migration** companion plugin, so the
 > shippable core carries no site-specific code. What changed in each release is in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -78,18 +78,20 @@ in `src/Update/GitHubUpdater.php`; the `Update URI` header keeps any same-slug
 WordPress.org plugin from hijacking the update.
 
 ## Releasing
-Cutting a release is one tagged commit — CI does the rest:
+**Merging a version bump to `main` publishes the release.** `.github/workflows/release.yml`
+tags `vX.Y.Z`, builds `coa-vault.zip` (dev files stripped via `.distignore`) and publishes it
+as soon as a version with no tag yet lands on `main` — no manual tag needed.
 
 1. Bump the version in **two** places: the `Version:` header and `COA_VAULT_VERSION`
-   in `coa-vault.php` (keep them equal; the constant is the runtime source of truth).
-2. Commit, then tag and push:
-   ```bash
-   git commit -am "Release vX.Y.Z"
-   git tag vX.Y.Z && git push origin main --tags
-   ```
-3. `.github/workflows/release.yml` builds `coa-vault.zip` (dev files stripped via
-   `.distignore`, the tag version stamped into the header as a safety net) and
-   publishes it as the release asset.
+   in `coa-vault.php` (keep them equal; the constant is the runtime source of truth), and
+   add the version's section to `CHANGELOG.md` and `readme.txt`.
+2. When a new WordPress major ships and the plugin has been checked on it, bump
+   `Tested up to:` in **both** `coa-vault.php` and `readme.txt` to that major (e.g. `7.1`).
+   The updater reports it to each site as that site's own point release, so `7.1` reads as
+   compatible on 7.1.3 — the expansion WordPress.org does for directory plugins.
+3. Merge to `main`. To merge **without** releasing (e.g. to test first), put
+   `[skip release]` in the merge commit message; release later by pushing the
+   `vX.Y.Z` tag or running the workflow manually against it.
 
 Within ~6h (or immediately via **Dashboard → Updates → Check again**) every site sees
 the new version and can update in one click. Use `vX.Y.Z-rc1`-style pre-release tags
