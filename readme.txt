@@ -2,9 +2,9 @@
 Contributors: beenacle
 Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,14 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.3 =
+* Fix: Dashboard -> Updates said "Compatibility with WordPress 7.1.3: Not tested". Now declared
+  tested up to WordPress 7.1, reported as the newest 7.1.x the site knows of.
+* Fix: updates are described with the release's own PHP / WordPress requirements instead of the
+  installed copy's, so WordPress keeps an update off a PHP it can't run on; automatic updates are
+  also held back on a WordPress older than the release supports.
+* Change: Dashboard -> Updates -> Check again picks up a new release immediately.
 
 = 0.3.2 =
 * Change: certificates are read with Claude Haiku 5.5 instead of Claude Haiku 4.5. Better reads at
