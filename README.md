@@ -87,15 +87,19 @@ as soon as a version with no tag yet lands on `main` — no manual tag needed.
    add the version's section to `CHANGELOG.md` and `readme.txt`.
 2. When a new WordPress major ships and the plugin has been checked on it, bump
    `Tested up to:` in **both** `coa-vault.php` and `readme.txt` to that major (e.g. `7.1`).
-   The updater reports it to each site as that site's own point release, so `7.1` reads as
-   compatible on 7.1.3 — the expansion WordPress.org does for directory plugins.
-3. Merge to `main`. To merge **without** releasing (e.g. to test first), put
-   `[skip release]` in the merge commit message; release later by pushing the
-   `vX.Y.Z` tag or running the workflow manually against it.
+   The updater reports it as the newest point release of that branch the site knows of
+   (running or offered), so `7.1` reads as compatible on 7.1.3 — matching how
+   WordPress.org treats a declared major.
+3. Merge to `main`.
 
-Within ~6h (or immediately via **Dashboard → Updates → Check again**) every site sees
-the new version and can update in one click. Use `vX.Y.Z-rc1`-style pre-release tags
-for testing — the updater only follows the *latest* full (non-prerelease) release.
+**Testing before release.** Keep the version bump off `main` until you're ready: test from
+the branch (or a zip of it), then merge. `[skip release]` in a merge commit message holds
+**only that push** — the next ordinary push to `main` publishes the held version, because its
+tag still doesn't exist. The workflow publishes *any* tag it builds as the full Latest release
+offered to every site, so `-rc` tags are not a private channel.
+
+Each site caches the latest release for up to 6 hours; **Dashboard → Updates → Check again**
+bypasses that cache, so a site can pick up a new release immediately and update in one click.
 
 ## Migration (separate companion)
 Importing legacy ACF / `lab-result` CPT / native `coa` data is handled by a separate

@@ -105,9 +105,11 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 
 = 0.3.3 =
 * Fix: Dashboard -> Updates said "Compatibility with WordPress 7.1.3: Not tested". Now declared
-  tested up to WordPress 7.1, reported to each site as its own point release.
+  tested up to WordPress 7.1, reported as the newest 7.1.x the site knows of.
 * Fix: updates are described with the release's own PHP / WordPress requirements instead of the
-  installed copy's, so WordPress can block an update on a server that can't run it.
+  installed copy's, so WordPress keeps an update off a PHP it can't run on; automatic updates are
+  also held back on a WordPress older than the release supports.
+* Change: Dashboard -> Updates -> Check again picks up a new release immediately.
 
 = 0.3.2 =
 * Change: certificates are read with Claude Haiku 5.5 instead of Claude Haiku 4.5. Better reads at

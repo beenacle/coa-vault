@@ -5,18 +5,23 @@ versions) is in `readme.txt` for WordPress.
 
 ## 0.3.3
 - Fix: Dashboard → Updates reported "Compatibility with WordPress 7.1.3: Not tested". The plugin
-  is now declared tested up to **WordPress 7.1**, and the updater reports that to each site as the
-  site's own point release (`7.1` → `7.1.3`), the expansion WordPress.org performs for directory
-  plugins — WordPress compares the value against the full running version, so a bare `7.1` would
-  still have read "Not tested" on 7.1.3.
+  is now declared tested up to **WordPress 7.1**, and the updater reports that as the newest point
+  release of the 7.1 branch the site knows of — the running version, or a core update on offer —
+  the way WordPress.org treats a declared major. (WordPress compares the value against full
+  versions, so a bare `7.1` would still have read "Not tested" on 7.1.3.)
 - Fix: the updater described an update using the **installed** copy's "Requires PHP", "Requires at
-  least" and "Tested up to" instead of the release's. WordPress uses an update's PHP and WordPress
-  minimums to block it on servers that can't run it, so a release that raised either would have
-  been offered — and auto-updated — onto sites it breaks. They are now read from the release tag
-  (one small extra request, cached with the release for 6 hours), falling back to the installed
-  values if that fetch fails so an update is never withheld.
-- Note: this release itself is still announced by the previous version's updater, so updating
-  *to* 0.3.3 shows "Not tested" one last time; updates after it show the correct status.
+  least" and "Tested up to" instead of the release's. They are now read from the release tag (one
+  small extra request, cached with the release), falling back to the installed values if that fetch
+  fails — retried after 30 minutes rather than 6 hours — so an update is never withheld. WordPress
+  uses an update's "Requires PHP" to keep it from being offered or auto-installed on a too-old PHP,
+  so a release that raises it can no longer reach sites it would break.
+- Fix: WordPress's plugin auto-updater ignores an update's "Requires at least" (it checks only PHP),
+  so the updater now stops an **automatic** update onto a WordPress older than the release
+  supports. Manual updates were already blocked by WordPress in that case.
+- Change: **Dashboard → Updates → Check again** now also refreshes the updater's own release cache,
+  so a newly published release shows up immediately instead of within 6 hours.
+- Note: the update *to* 0.3.3 is still described by the previously installed updater, so it shows
+  "Not tested" one last time; updates after it show the correct status.
 
 ## 0.3.2
 - Change: certificates are now read with **Claude Haiku 5.5** (`claude-haiku-5-5`) instead of
