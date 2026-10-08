@@ -3,6 +3,21 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.2
+- Change: certificates are now read with **Claude Haiku 5.5** (`claude-haiku-5-5`) instead of
+  Claude Haiku 4.5. It reads better on Anthropic's benchmarks and costs about a tenth as much per
+  token ($0.10 / $0.50 per million input / output tokens for a certificate-sized request, against
+  $1 / $5).
+- Change: the read request now leaves room for the model's thinking. Haiku 5.5 thinks by default
+  and its thinking counts toward the output cap, so the 4096-token cap tuned for Haiku 4.5 could
+  have cut a dense certificate off mid-read — reported as "nothing could be read". The cap is now
+  16,000 tokens, and the request asks for `low` effort, the level the docs recommend for simple
+  extraction. Override with the new `coa_vault_claude_effort` filter (`low` | `medium` | `high` |
+  `xhigh` | `max`, or `''` to use the model's default). Effort is never sent to Claude Haiku 4.5,
+  which rejects it, so a site pinned to that model keeps working.
+- To stay on Haiku 4.5, set `define('COA_VAULT_CLAUDE_MODEL', 'claude-haiku-4-5');` in
+  `wp-config.php` or use the `coa_vault_claude_model` filter.
+
 ## 0.3.1
 - Fix (storefront): a batch row for a specific size now shows that size, named as in the product's size picker (25 g · Lab · date). On the archive, or before a size is picked, every size carries its own "Latest" tag, and without the size two "Latest" rows were ambiguous. The name comes from the certificate's own variation, else from the product's published variations; where none carries the size, or two name it differently, the stored size key is shown, as in the admin list.
 - Fix (storefront): the COA archive ([coa_vault all="true"]) lists each product's sizes in the same order as the product page, shorter sizes first, so 5 g comes before 25 g.

@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.3.1
+Stable tag: 0.3.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,14 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.2 =
+* Change: certificates are read with Claude Haiku 5.5 instead of Claude Haiku 4.5. Better reads at
+  about a tenth of the price per token.
+* Change: the read request leaves room for the model's thinking (output cap 16,000 tokens) and asks
+  for low effort, so dense certificates aren't cut off mid-read. New filter coa_vault_claude_effort
+  overrides the effort level. To stay on Haiku 4.5, define COA_VAULT_CLAUDE_MODEL as
+  claude-haiku-4-5 in wp-config.php.
 
 = 0.3.1 =
 * Fix (storefront): a batch row for a specific size now shows that size, named as in the size picker (25 g · Lab · date), so per-size "Latest" tags on the archive, or before a size is picked, are no longer ambiguous.

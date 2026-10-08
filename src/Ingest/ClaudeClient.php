@@ -17,7 +17,20 @@ final class ClaudeClient
 {
     private const ENDPOINT      = 'https://api.anthropic.com/v1/messages';
     private const API_VERSION   = '2023-06-01';
-    private const DEFAULT_MODEL = 'claude-haiku-4-5';
+    private const DEFAULT_MODEL = 'claude-haiku-5-5';
+
+    // Models that predate the effort parameter and reject it with a 400 (which would turn
+    // every scan into a silent manual-entry fallback). Of the models still served that is
+    // only Claude Haiku 4.5; the others are retired and listed for completeness. Every
+    // later model accepts effort, so new IDs need no entry here.
+    private const NO_EFFORT_PREFIXES = [
+        'claude-haiku-4-5',
+        'claude-sonnet-4-5',
+        'claude-opus-4-1',
+        'claude-opus-4-20250514',
+        'claude-sonnet-4-20250514',
+        'claude-3',
+    ];
 
     // Anthropic limits: 10 MB per image and ~32 MB per request, measured on the
     // BASE64 payload (which is ~33% larger than the raw bytes). Guard against the
@@ -51,17 +64,27 @@ final class ClaudeClient
             return []; // unsupported type — caller falls back to manual entry
         }
 
+        $model  = self::model();
+        $output = ['format' => ['type' => 'json_schema', 'schema' => self::schema()]];
+        $effort = self::effort($model);
+        if ($effort !== '') {
+            $output['effort'] = $effort;
+        }
+
         $body = [
-            'model'      => self::model(),
-            // Headroom for characteristic-heavy blend COAs: at 1024 a dense report
-            // could stop on max_tokens, truncating the JSON into a silent "read
-            // nothing" (json_decode null → []).
-            'max_tokens' => 4096,
+            'model'      => $model,
+            // Room for the model's thinking as well as the answer. Newer models think by
+            // default and that thinking counts toward this cap, and their tokenizer counts
+            // the same text ~30% higher than Haiku 4.5's. A read that hits the cap ends as
+            // stop_reason max_tokens, treated below as "nothing read" — the silent failure
+            // 0.2.4 fixed by raising 1024 to 4096 for dense blend COAs. It is a ceiling,
+            // not a spend: a normal read uses a small fraction of it.
+            'max_tokens' => 16000,
             'messages'   => [[
                 'role'    => 'user',
                 'content' => [$media, ['type' => 'text', 'text' => self::PROMPT]],
             ]],
-            'output_config' => ['format' => ['type' => 'json_schema', 'schema' => self::schema()]],
+            'output_config' => $output,
         ];
 
         $response = wp_remote_post(self::ENDPOINT, [
@@ -88,7 +111,8 @@ final class ClaudeClient
             return [];
         }
 
-        // Structured outputs guarantee the first text block is valid JSON.
+        // Structured outputs guarantee the first TEXT block is valid JSON. Select it by
+        // type, not position: models that think put thinking blocks ahead of it.
         $text = '';
         foreach ((array) ($data['content'] ?? []) as $block) {
             if (($block['type'] ?? '') === 'text') {
@@ -122,13 +146,35 @@ final class ClaudeClient
         return null;
     }
 
-    /** Default model, overridable per-site (e.g. bump to claude-sonnet-4-6 for dense COAs). */
+    /** Default model, overridable per-site (e.g. claude-sonnet-5-5 for dense COAs). */
     private static function model(): string
     {
         if (defined('COA_VAULT_CLAUDE_MODEL') && (string) COA_VAULT_CLAUDE_MODEL !== '') {
             return (string) COA_VAULT_CLAUDE_MODEL;
         }
         return (string) apply_filters('coa_vault_claude_model', self::DEFAULT_MODEL);
+    }
+
+    /**
+     * How much the model thinks, sent as output_config.effort. Reading one certificate
+     * into a fixed JSON shape is simple, high-volume extraction — what the docs recommend
+     * `low` for — and Haiku 4.5 did it with no thinking at all. Newer models think by
+     * default (Haiku 5.5 at `medium`), which only adds latency and cost here and eats into
+     * max_tokens. Filterable via `coa_vault_claude_effort` (low|medium|high|xhigh|max);
+     * return '' to send none and use the model's own default.
+     */
+    private static function effort(string $model): string
+    {
+        $effort = strtolower(trim((string) apply_filters('coa_vault_claude_effort', 'low', $model)));
+        if (!in_array($effort, ['low', 'medium', 'high', 'xhigh', 'max'], true)) {
+            return '';
+        }
+        foreach (self::NO_EFFORT_PREFIXES as $prefix) {
+            if (str_starts_with($model, $prefix)) {
+                return '';
+            }
+        }
+        return $effort;
     }
 
     /** @return array<string,mixed> */
