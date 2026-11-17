@@ -154,7 +154,9 @@ namespace {
     check('request schema no longer has analysis_date', isset($schema['properties']['analysis_date']), false);
     check('date field is required', in_array('analysis_date_as_printed', $schema['required'], true), true);
     check('prompt no longer asks for YYYY-MM-DD', str_contains($prompt, 'YYYY-MM-DD'), false);
-    check('prompt says copy EXACTLY as printed', str_contains($prompt, 'copied EXACTLY as it is printed'), true);
+    check('prompt says copy EXACTLY as printed', str_contains($prompt, 'EXACTLY as it is printed'), true);
+    check('prompt falls back to the published date', str_contains($prompt, 'published, reported or issued'), true);
+    check('prompt rules out received/expiry dates', str_contains($prompt, 'Never use a received, sampled, manufacture or expiry date'), true);
 
     $r = scan_with_date('03/25/2026');
     check('"03/25/2026" -> 2026-03-25', $r['prefill']['analysis_date'], '2026-03-25');

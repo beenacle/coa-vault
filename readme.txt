@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.4
+Stable tag: 0.3.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,11 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.5 =
+* Fix: certificates that print no analysis date (AccuMark prints only Received and Published) now
+  get a date from the AI read: the published / reported / issued date, never a received, sampled,
+  manufacture or expiry date.
 
 = 0.3.4 =
 * Fix (data correctness): the AI read no longer guesses an ambiguous certificate date such as
