@@ -134,13 +134,36 @@ final class Normalize
     }
 
     /**
+     * English month names and abbreviations as certificates print them, lower-case.
+     */
+    private const MONTHS = [
+        'jan' => 1, 'january' => 1,
+        'feb' => 2, 'february' => 2,
+        'mar' => 3, 'march' => 3,
+        'apr' => 4, 'april' => 4,
+        'may' => 5,
+        'jun' => 6, 'june' => 6,
+        'jul' => 7, 'july' => 7,
+        'aug' => 8, 'august' => 8,
+        'sep' => 9, 'sept' => 9, 'september' => 9,
+        'oct' => 10, 'october' => 10,
+        'nov' => 11, 'november' => 11,
+        'dec' => 12, 'december' => 12,
+    ];
+
+    /**
      * Parse a certificate date into ISO Y-m-d.
      *
-     * Unambiguous inputs always parse: ISO (Y-m-d / Ymd) and any separated numeric
-     * date whose day component exceeds 12 (25/03/2026 can only be d/m/Y, 03/25/2026
-     * only m/d/Y). A genuinely ambiguous one like 06/04/2026 is REJECTED unless the
-     * site has declared its order — guessing silently mis-dates the certificate and
-     * mis-orders "latest", so the raw text is preserved and flagged instead.
+     * Unambiguous inputs always parse: ISO (Y-m-d / Ymd, and year-first Y/m/d or
+     * Y.m.d), a date with the month written as a word (8 Jan 2026, January 8th, 2026),
+     * and any separated numeric date whose day component exceeds 12 (25/03/2026 can
+     * only be d/m/Y, 03/25/2026 only m/d/Y). A genuinely ambiguous one like 06/04/2026
+     * is REJECTED unless the site has declared its order — guessing silently mis-dates
+     * the certificate and mis-orders "latest", so the raw text is preserved and flagged
+     * instead.
+     *
+     * The AI scan passes in the date exactly as printed on the certificate, so the
+     * same rules decide a scanned date and a typed one.
      *
      * @return array{0:?string,1:bool} [iso-date|null, parsed-ok]
      */
@@ -157,6 +180,18 @@ final class Normalize
             if ($dt instanceof \DateTimeImmutable && $dt->format($fmt) === $raw) {
                 return [$dt->format('Y-m-d'), true];
             }
+        }
+
+        // Year-first numeric (2026/03/25, 2026.3.5): always year-month-day — labs
+        // don't print year-day-month.
+        if (preg_match('#^(\d{4})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{1,2})$#', $raw, $m) === 1) {
+            return self::ymd((int) $m[1], (int) $m[2], (int) $m[3]);
+        }
+
+        // Month written as a word — unambiguous in any order.
+        $named = self::month_name_date($raw);
+        if ($named !== null) {
+            return $named;
         }
 
         // Separated all-numeric date — decide d/m/Y vs m/d/Y, or refuse.
@@ -186,13 +221,51 @@ final class Normalize
                 return [null, false];           // both components > 12: not a date
             }
 
-            if (!checkdate($month, $day, $y)) {
-                return [null, false];
-            }
-            return [sprintf('%04d-%02d-%02d', $y, $month, $day), true];
+            return self::ymd($y, $month, $day);
         }
 
         return [null, false]; // unparseable → anomaly
+    }
+
+    /**
+     * A date whose month is written as a word: 8 Jan 2026, 8th January, 2026,
+     * 08-JAN-2026, Jan 8, 2026, January 8th 2026, Sept. 8 2026, 2026-Jan-08.
+     * Four-digit years only (a two-digit year is a second ambiguity).
+     *
+     * @return array{0:?string,1:bool}|null null when $raw is not in a month-name shape
+     */
+    private static function month_name_date(string $raw): ?array
+    {
+        $s   = strtolower(preg_replace('/\s+/', ' ', $raw) ?? $raw);
+        $ord = '(?:st|nd|rd|th)?';
+        $patterns = [
+            // Day first: 8 Jan 2026 · 8th January, 2026 · 08-JAN-2026 · 8.Jan.2026
+            '#^(?<d>\d{1,2})' . $ord . '[\s.\-/]*(?<m>[a-z]{3,9})\.?[\s.,\-/]*(?<y>\d{4})$#',
+            // Month first: Jan 8, 2026 · January 8th 2026 · JAN-08-2026
+            '#^(?<m>[a-z]{3,9})\.?[\s.\-/]*(?<d>\d{1,2})' . $ord . '[\s.,\-/]+(?<y>\d{4})$#',
+            // Year first: 2026-Jan-08 · 2026 January 8
+            '#^(?<y>\d{4})[\s.\-/]*(?<m>[a-z]{3,9})\.?[\s.\-/]*(?<d>\d{1,2})$#',
+        ];
+        foreach ($patterns as $re) {
+            if (preg_match($re, $s, $m) !== 1) {
+                continue;
+            }
+            $month = self::MONTHS[$m['m']] ?? null;
+            if ($month === null) {
+                return [null, false]; // a word, but not a month
+            }
+            return self::ymd((int) $m['y'], $month, (int) $m['d']);
+        }
+        return null;
+    }
+
+    /** @return array{0:?string,1:bool} */
+    private static function ymd(int $y, int $month, int $day): array
+    {
+        if (!checkdate($month, $day, $y)) {
+            return [null, false];
+        }
+        return [sprintf('%04d-%02d-%02d', $y, $month, $day), true];
     }
 
     /** Parse a numeric string into a float, or null when non-numeric. */
