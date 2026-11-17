@@ -122,8 +122,13 @@ namespace {
     check('"" absent is not an anomaly', $date(''), [null, true]);
     check('"31 Feb 2026" impossible', $date('31 Feb 2026'), [null, false]);
     check('"Smarch 8 2026" not a month', $date('Smarch 8 2026'), [null, false]);
-    check('"8 Jan 26" two-digit year', $date('8 Jan 26'), [null, false]);
-    check('"06/04/26" two-digit year', $date('06/04/26'), [null, false]);
+    check('"06/30/25" two-digit year, day > 12', $date('06/30/25'), ['2025-06-30', true]);
+    check('"25.03.26" two-digit year, day > 12', $date('25.03.26'), ['2026-03-25', true]);
+    check('"04/02/25" two-digit year, ambiguous', $date('04/02/25'), [null, false]);
+    check('"8 Jan 26" / "08-JAN-26"', [$date('8 Jan 26'), $date('08-JAN-26')], [['2026-01-08', true], ['2026-01-08', true]]);
+    check('"26/03/2025" stays d/m/Y (not y/m/d)', $date('26/03/2025'), ['2025-03-26', true]);
+    check('"26-Jan-8" year-first needs 4 digits', $date('26-Jan-8'), [null, false]);
+    check('"6/4/2026 9" junk', $date('6/4/2026 9'), [null, false]);
     check('"2026/25/03" year-day-month', $date('2026/25/03'), [null, false]);
     check('"Thu, 8 Jan 2026" weekday', $date('Thu, 8 Jan 2026'), [null, false]);
     echo "Normalize::date(), date order set:\n";
@@ -131,6 +136,8 @@ namespace {
     check('dmy: "06/04/2026" -> 2026-04-06', $date('06/04/2026', 'dmy'), ['2026-04-06', true]);
     check('mdy: "25/03/2026" still 2026-03-25', $date('25/03/2026', 'mdy'), ['2026-03-25', true]);
     check('dmy: "8 Jan 2026" unaffected', $date('8 Jan 2026', 'dmy'), ['2026-01-08', true]);
+    check('mdy: "04/02/25" -> 2025-04-02', $date('04/02/25', 'mdy'), ['2025-04-02', true]);
+    check('dmy: "04/02/25" -> 2025-02-04', $date('04/02/25', 'dmy'), ['2025-02-04', true]);
 
     // ── Part 2: the scan endpoint end to end ─────────────────────────────────
     echo "Scan endpoint (ScanController::scan with a stubbed AI read):\n";
@@ -157,6 +164,12 @@ namespace {
     check('"8 Jan 2026" -> 2026-01-08', $r['prefill']['analysis_date'], '2026-01-08');
     check('"8 Jan 2026": no raw text, no notice', [$r['prefill']['analysis_date_raw'], $r['warning']], ['', '']);
 
+    // Chromate certificates print month-first dates with a two-digit year.
+    $r = scan_with_date('06/30/25');
+    check('"06/30/25" (Chromate) -> 2025-06-30', [$r['prefill']['analysis_date'], $r['warning']], ['2025-06-30', '']);
+    $r = scan_with_date('04/02/25');
+    check('"04/02/25" (Chromate): blank, raw kept, notice', [$r['prefill']['analysis_date'], $r['prefill']['analysis_date_raw'], $r['warning'] !== ''], ['', '04/02/25', true]);
+
     $r = scan_with_date(null);
     check('no date printed: null date, no raw text, no notice', [$r['prefill']['analysis_date'], $r['prefill']['analysis_date_raw'], $r['warning']], [null, '', '']);
 
@@ -167,6 +180,9 @@ namespace {
     $r = scan_with_date('06/04/2026');
     check('order mdy: "06/04/2026" -> 2026-06-04', $r['prefill']['analysis_date'], '2026-06-04');
     check('order mdy: no raw text, no notice', [$r['prefill']['analysis_date_raw'], $r['warning']], ['', '']);
+
+    $r = scan_with_date('04/02/25');
+    check('order mdy: "04/02/25" (Chromate) -> 2025-04-02', $r['prefill']['analysis_date'], '2025-04-02');
 
     $GLOBALS['t_options']['coa_vault_date_order'] = 'dmy';
     $r = scan_with_date('06/04/2026');

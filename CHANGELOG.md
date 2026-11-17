@@ -16,8 +16,12 @@ versions) is in `readme.txt` for WordPress.
   are not changed: re-read one, or check its date against the certificate, to correct it.
 - New: dates with the month written as a word now parse, in any order (`8 Jan 2026`,
   `8th January, 2026`, `08-JAN-2026`, `Jan 8, 2026`, `2026-Jan-08`), as do year-first numeric
-  dates (`2026/03/25`, `2026.3.5`). Before, these were kept as text for you to fill in. Two-digit
-  years are still not guessed.
+  dates (`2026/03/25`, `2026.3.5`). Before, these were kept as text for you to fill in.
+- New: a two-digit year at the end of a date is read as 20YY. Chromate certificates print the
+  date month first with a two-digit year (`06/30/25`). Without this, every Chromate date read with
+  AI would have been left blank. The year is the only thing settled this way: `04/02/25` is still
+  ambiguous between April 2 and 4 February, so it needs **Certificate date order** set (Chromate
+  prints month first), or it is left blank with the review notice.
 
 ## 0.3.3
 - Fix: Dashboard → Updates reported "Compatibility with WordPress 7.1.3: Not tested". The plugin
