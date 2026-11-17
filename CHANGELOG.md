@@ -3,6 +3,13 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.5
+- Fix: the AI read now finds a date on certificates that print no analysis date. AccuMark, for
+  one, prints only a Received and a Published date, so every AccuMark certificate came in undated.
+  When no analysis / test date is printed, the read now uses the date the results were published,
+  reported or issued, never a received, sampled, manufacture or expiry date. As before, the date is
+  copied exactly as printed and **Certificate date order** decides an ambiguous one.
+
 ## 0.3.4
 - **Fix (data correctness): the AI read no longer guesses an ambiguous certificate date.** The
   read asked the model for the date "in YYYY-MM-DD format", so on a certificate printing

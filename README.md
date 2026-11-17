@@ -10,7 +10,7 @@ Plugin-owned custom tables, simple **and** variable product support, multi-COA p
 size/variation, a frontend display (block / shortcode / auto-inject with per-variation
 swap), an admin editor, and a REST API.
 
-> **Status: v0.3.4.** Core is self-contained and distribution-oriented. Legacy data import
+> **Status: v0.3.5.** Core is self-contained and distribution-oriented. Legacy data import
 > lives in a separate, optional **COA Vault — Migration** companion plugin, so the
 > shippable core carries no site-specific code. What changed in each release is in
 > [CHANGELOG.md](CHANGELOG.md).
