@@ -58,7 +58,11 @@ final class ClaudeClient
     /**
      * Read a certificate and return the extracted fields, or [] on any failure.
      *
-     * @return array{lab?:?string,batch?:?string,purity_pct?:float|int|null,mass_mg?:float|int|null,analysis_date?:?string,peptide?:?string,verify_url?:?string}
+     * The date comes back as `analysis_date_as_printed`: the certificate's own text, NOT
+     * converted. Normalize::date() turns it into ISO (or refuses an ambiguous one), so a
+     * read date follows the same rules and `coa_vault_date_order` setting as a typed one.
+     *
+     * @return array{lab?:?string,batch?:?string,purity_samples?:array<int,float|int>,mass_samples?:array<int,float|int>,analysis_date_as_printed?:?string,peptide?:?string,size?:?string,verify_url?:?string,certificate_count?:int,characteristics?:array<int,array{name:string,value:string,unit:string}>}
      */
     public function extract(string $bytes, string $mime): array
     {
@@ -214,7 +218,9 @@ final class ClaudeClient
                 // replicates leaking into characteristics).
                 'purity_samples' => ['type' => 'array', 'items' => ['type' => 'number']],
                 'mass_samples'   => ['type' => 'array', 'items' => ['type' => 'number']],
-                'analysis_date' => $nullable('string'),
+                // Copied verbatim, never converted: the model can't know whether 06/04/2026
+                // is June 4 or 6 April, and asking it for ISO made it guess silently.
+                'analysis_date_as_printed' => $nullable('string'),
                 'peptide'       => $nullable('string'),
                 'size'          => $nullable('string'),
                 'verify_url'    => $nullable('string'),
@@ -237,7 +243,7 @@ final class ClaudeClient
                     ],
                 ],
             ],
-            'required' => ['lab', 'batch', 'purity_samples', 'mass_samples', 'analysis_date', 'peptide', 'size', 'verify_url', 'certificate_count', 'characteristics'],
+            'required' => ['lab', 'batch', 'purity_samples', 'mass_samples', 'analysis_date_as_printed', 'peptide', 'size', 'verify_url', 'certificate_count', 'characteristics'],
         ];
     }
 
@@ -251,7 +257,7 @@ Report only values that are actually MEASURED and printed in the results. Never 
 - batch: the batch / lot number / identifier. If there is no field literally labelled "Batch" or "Lot", use the client's batch identifier even when it is labelled differently (e.g. a "Client SID" like "POL-T10-17", or a manufacturer batch code) — but NOT the lab's own internal sample/task/job number.
 - purity_samples: a list of EVERY measured purity %, one number per result printed (no % sign). A single purity is a one-element list (e.g. [99.02]); three replicate purities are [99.180, 99.147, 99.168]; a blend's total purity goes here too. Empty list [] if no purity is measured. Do NOT average or pick one — list each measured value exactly as printed; the system averages them.
 - mass_samples: a list of EVERY measured net ACTIVE / peptide content in MILLIGRAMS for a SINGLE-compound product, one number per result printed (a single mass is [11.7]; three replicate masses are [9.98, 9.86, 10.19]). Use the peptide content, NOT the total sample or fill mass that includes excipients or diluent (e.g. for Peptide Content 37.4 mg / Excipients 47.3 mg / Sample Mass 84.7 mg, use [37.4] and put the excipient and sample-mass figures in characteristics). mass_samples MUST be an empty list [] when ANY of these is true: the certificate tests MORE THAN ONE active compound (a BLEND such as "BPC-157 + TB-500" has NO single main mass — put every component's mass in characteristics, never here); the content is in a NON-mg unit (mL, mcg/µg, g, IU/EU — put it in characteristics with its real unit); or no mass is measured. Do NOT average or pick one — list each value; the system averages them.
-- analysis_date: the date of analysis in YYYY-MM-DD format.
+- analysis_date_as_printed: the date of analysis, copied EXACTLY as it is printed on the certificate: the same numbers in the same order, the same separators, and the month spelled as printed (e.g. "06/04/2026", "25.03.2026", "8 Jan 2026", "March 25, 2026", "2026-03-25"). Do NOT convert it to another format or reorder its parts, and do NOT decide whether a date such as 06/04/2026 means June 4 or 6 April: the system works that out from the store's own setting. Copy only the date, leaving out any time of day or weekday. Use null if no analysis date is printed.
 - peptide: the product / compound name tested. For a blend, name all actives (e.g. "BPC-157 + TB-500").
 - size: the product's labelled size / strength shown in the sample or product name (e.g. "10mg", "5mg", "10ml", "2mg") — the declared vial size that identifies which variation the certificate is for. This is the LABEL, not a measurement (it is fine that the same number is excluded from mass_mg). Use null if no size is shown.
 - verify_url: the verification URL printed on the certificate, copied EXACTLY as shown, including the https:// scheme (add https:// if the document omits it). This is the LAB'S certificate-verification page (where the certificate/batch is confirmed against the lab's own records) — it is NEVER a chemical or compound reference link: do NOT return a PubChem, NCBI, Wikipedia, ChemSpider, DrugBank, Sigma-Aldrich or similar database URL (those describe the molecule, they do not verify the certificate), even when it is the only URL printed — return null in that case. Do NOT invent, assemble, or guess a link: never build one by appending a sample/lot code or key to a domain (e.g. do not turn the domain "ACCUMARKLABS.COM" plus a code "UCSD-8SPY" into "accumarklabs.com/UCSD-8SPY"). If the document prints a full verification URL that already contains a key/code (e.g. "...?Key=253K78SPJVNU" or "...?accuverify_code=VXP3-4VZC"), return it exactly. If it only prints a bare verification page or domain (with any code shown separately, not as part of a URL), return just that page/domain as printed. If no verification URL is clearly printed, return null. A QR code alone is not a URL — do not transcribe one.

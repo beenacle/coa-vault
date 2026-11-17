@@ -81,7 +81,12 @@ final class ScanController
         $lab_from_url = Normalize::lab_from_url($verify);
         $lab          = $lab_from_url['slug'] !== '' ? $lab_from_url : Normalize::lab((string) ($fields['lab'] ?? ''));
 
-        $date_text  = sanitize_text_field((string) ($fields['analysis_date'] ?? ''));
+        // The AI returns the date exactly as printed (never converted), so the same parser
+        // and `coa_vault_date_order` setting decide it as for a typed date: an ambiguous
+        // 06/04/2026 is refused here instead of the model silently picking an order.
+        // Capped to the analysis_date_raw column (varchar 64): a longer value would make
+        // the save fail, and no real date is that long.
+        $date_text  = mb_substr(sanitize_text_field((string) ($fields['analysis_date_as_printed'] ?? '')), 0, 64);
         [$iso, $ok] = Normalize::date($date_text);
         $report     = Report::resolve($attachment_id);
         $path       = get_attached_file($attachment_id);

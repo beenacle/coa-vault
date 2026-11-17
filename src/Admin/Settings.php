@@ -291,7 +291,7 @@ final class Settings
             );
         }
         echo '</fieldset>';
-        echo '<p class="description">' . esc_html__('Certificates print dates like 06/04/2026 with nothing to say whether that is June 4 or 6 April, and guessing wrong silently back-dates a batch and can show the wrong certificate as “Latest”. Left on “Ask me”, such a date is not stored — the certificate is saved with the original text kept and the date left blank for you to fill in. Dates you pick in the editor, ISO dates (2026-06-04), and unambiguous ones (25/03/2026) are always read correctly.', 'coa-vault') . '</p>';
+        echo '<p class="description">' . esc_html__('Certificates print dates like 06/04/2026 with nothing to say whether that is June 4 or 6 April, and guessing wrong silently back-dates a batch and can show the wrong certificate as “Latest”. Left on “Ask me”, such a date is not stored — the certificate is saved with the original text kept and the date left blank for you to fill in. This applies to dates the AI reads off a certificate too. Dates you pick in the editor, ISO dates (2026-06-04), dates with the month written out (4 Jun 2026), and unambiguous ones (25/03/2026) are always read correctly.', 'coa-vault') . '</p>';
     }
 
     public function field_uninstall(): void

@@ -4,7 +4,7 @@ Tags: woocommerce, certificate of analysis, coa, lab results, certificate
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.3
+Stable tag: 0.3.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,16 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
 `wp-config.php` keeps the key out of the database.
 
 == Changelog ==
+
+= 0.3.4 =
+* Fix (data correctness): the AI read no longer guesses an ambiguous certificate date such as
+  06/04/2026. It asked the model for an ISO date, so the model picked June 4 or 6 April itself and
+  skipped the 0.3.0 check. The model now copies the date as printed, and COA -> Settings ->
+  Certificate date order decides it, as for a typed date. Applies to scan / import, Re-read data and
+  the bulk Read data with AI. Batches already saved are not changed.
+* New: dates with the month written out (8 Jan 2026, Jan 8, 2026, 08-JAN-2026) and year-first
+  dates (2026/03/25) now parse, and a two-digit year at the end is read as 20YY (Chromate prints
+  06/30/25). Month and day order is still decided by Certificate date order.
 
 = 0.3.3 =
 * Fix: Dashboard -> Updates said "Compatibility with WordPress 7.1.3: Not tested". Now declared
@@ -255,6 +265,11 @@ enabling the feature. Defining `COA_VAULT_ANTHROPIC_KEY` in
   self-updater. Legacy import lives in a separate companion plugin.
 
 == Upgrade Notice ==
+
+= 0.3.4 =
+The AI reading no longer guesses ambiguous certificate dates (06/04/2026); they are kept as text
+for you to confirm, as for typed dates. If your labs print month first (US labs such as Chromate),
+set COA -> Settings -> Certificate date order to Month first.
 
 = 0.3.0 =
 Ambiguous certificate dates (06/04/2026) are no longer guessed — they are kept as text for you to

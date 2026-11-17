@@ -3,6 +3,26 @@
 Notable changes to COA Vault. Each version is a GitHub Release; the same log (released
 versions) is in `readme.txt` for WordPress.
 
+## 0.3.4
+- **Fix (data correctness): the AI read no longer guesses an ambiguous certificate date.** The
+  read asked the model for the date "in YYYY-MM-DD format", so on a certificate printing
+  `06/04/2026` the model itself picked June 4 or 6 April, and the ISO answer then passed the
+  0.3.0 "never guess" check untouched. A wrong date can change which batch shows as "Latest". The
+  model now copies the date exactly as printed, and the plugin decides it with the same rules and
+  **COA → Settings → Certificate date order** as a typed date: an ambiguous one is left blank with
+  the certificate's text kept and the review notice shown; an unambiguous one (`03/25/2026`,
+  `25/03/2026`) is filled in. This covers the scan / import box, **Re-read data**, and the bulk
+  **Read data with AI** on the All COAs list, which all use the same reader. Batches already saved
+  are not changed: re-read one, or check its date against the certificate, to correct it.
+- New: dates with the month written as a word now parse, in any order (`8 Jan 2026`,
+  `8th January, 2026`, `08-JAN-2026`, `Jan 8, 2026`, `2026-Jan-08`), as do year-first numeric
+  dates (`2026/03/25`, `2026.3.5`). Before, these were kept as text for you to fill in.
+- New: a two-digit year at the end of a date is read as 20YY. Chromate certificates print the
+  date month first with a two-digit year (`06/30/25`). Without this, every Chromate date read with
+  AI would have been left blank. The year is the only thing settled this way: `04/02/25` is still
+  ambiguous between April 2 and 4 February, so it needs **Certificate date order** set (Chromate
+  prints month first), or it is left blank with the review notice.
+
 ## 0.3.3
 - Fix: Dashboard → Updates reported "Compatibility with WordPress 7.1.3: Not tested". The plugin
   is now declared tested up to **WordPress 7.1**, and the updater reports that as the newest point

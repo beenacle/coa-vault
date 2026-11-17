@@ -134,13 +134,40 @@ final class Normalize
     }
 
     /**
+     * English month names and abbreviations as certificates print them, lower-case.
+     */
+    private const MONTHS = [
+        'jan' => 1, 'january' => 1,
+        'feb' => 2, 'february' => 2,
+        'mar' => 3, 'march' => 3,
+        'apr' => 4, 'april' => 4,
+        'may' => 5,
+        'jun' => 6, 'june' => 6,
+        'jul' => 7, 'july' => 7,
+        'aug' => 8, 'august' => 8,
+        'sep' => 9, 'sept' => 9, 'september' => 9,
+        'oct' => 10, 'october' => 10,
+        'nov' => 11, 'november' => 11,
+        'dec' => 12, 'december' => 12,
+    ];
+
+    /**
      * Parse a certificate date into ISO Y-m-d.
      *
-     * Unambiguous inputs always parse: ISO (Y-m-d / Ymd) and any separated numeric
-     * date whose day component exceeds 12 (25/03/2026 can only be d/m/Y, 03/25/2026
-     * only m/d/Y). A genuinely ambiguous one like 06/04/2026 is REJECTED unless the
-     * site has declared its order — guessing silently mis-dates the certificate and
-     * mis-orders "latest", so the raw text is preserved and flagged instead.
+     * Unambiguous inputs always parse: ISO (Y-m-d / Ymd, and year-first Y/m/d or
+     * Y.m.d), a date with the month written as a word (8 Jan 2026, January 8th, 2026),
+     * and any separated numeric date whose day component exceeds 12 (25/03/2026 can
+     * only be d/m/Y, 03/25/2026 only m/d/Y). A genuinely ambiguous one like 06/04/2026
+     * is REJECTED unless the site has declared its order — guessing silently mis-dates
+     * the certificate and mis-orders "latest", so the raw text is preserved and flagged
+     * instead.
+     *
+     * A two-digit year is accepted where the year comes LAST and read as 20YY — labs
+     * such as Chromate print 06/30/25. It settles only the year: the day/month order of
+     * 04/02/25 is still decided by the rules above.
+     *
+     * The AI scan passes in the date exactly as printed on the certificate, so the
+     * same rules decide a scanned date and a typed one.
      *
      * @return array{0:?string,1:bool} [iso-date|null, parsed-ok]
      */
@@ -159,11 +186,23 @@ final class Normalize
             }
         }
 
-        // Separated all-numeric date — decide d/m/Y vs m/d/Y, or refuse.
-        if (preg_match('#^(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4})$#', $raw, $m) === 1) {
+        // Year-first numeric (2026/03/25, 2026.3.5): always year-month-day — labs
+        // don't print year-day-month.
+        if (preg_match('#^(\d{4})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{1,2})$#', $raw, $m) === 1) {
+            return self::ymd((int) $m[1], (int) $m[2], (int) $m[3]);
+        }
+
+        // Month written as a word — unambiguous in any order.
+        $named = self::month_name_date($raw);
+        if ($named !== null) {
+            return $named;
+        }
+
+        // Separated all-numeric date, year last — decide d/m/Y vs m/d/Y, or refuse.
+        if (preg_match('#^(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4}|\d{2})$#', $raw, $m) === 1) {
             $a = (int) $m[1];
             $b = (int) $m[2];
-            $y = (int) $m[3];
+            $y = self::full_year($m[3]);
 
             if ($a > 12 && $b <= 12) {
                 $day = $a;                      // only d/m/Y can be meant
@@ -186,13 +225,57 @@ final class Normalize
                 return [null, false];           // both components > 12: not a date
             }
 
-            if (!checkdate($month, $day, $y)) {
-                return [null, false];
-            }
-            return [sprintf('%04d-%02d-%02d', $y, $month, $day), true];
+            return self::ymd($y, $month, $day);
         }
 
         return [null, false]; // unparseable → anomaly
+    }
+
+    /**
+     * A date whose month is written as a word: 8 Jan 2026, 8th January, 2026,
+     * 08-JAN-2026, 08-JAN-26, Jan 8, 2026, January 8th 2026, Sept. 8 2026, 2026-Jan-08.
+     * A two-digit year only where the year comes last (as for numeric dates).
+     *
+     * @return array{0:?string,1:bool}|null null when $raw is not in a month-name shape
+     */
+    private static function month_name_date(string $raw): ?array
+    {
+        $s   = strtolower(preg_replace('/\s+/', ' ', $raw) ?? $raw);
+        $ord = '(?:st|nd|rd|th)?';
+        $patterns = [
+            // Day first: 8 Jan 2026 · 8th January, 2026 · 08-JAN-2026 · 8.Jan.2026
+            '#^(?<d>\d{1,2})' . $ord . '[\s.\-/]*(?<m>[a-z]{3,9})\.?[\s.,\-/]*(?<y>\d{4}|\d{2})$#',
+            // Month first: Jan 8, 2026 · January 8th 2026 · JAN-08-2026
+            '#^(?<m>[a-z]{3,9})\.?[\s.\-/]*(?<d>\d{1,2})' . $ord . '[\s.,\-/]+(?<y>\d{4}|\d{2})$#',
+            // Year first: 2026-Jan-08 · 2026 January 8
+            '#^(?<y>\d{4})[\s.\-/]*(?<m>[a-z]{3,9})\.?[\s.\-/]*(?<d>\d{1,2})$#',
+        ];
+        foreach ($patterns as $re) {
+            if (preg_match($re, $s, $m) !== 1) {
+                continue;
+            }
+            $month = self::MONTHS[$m['m']] ?? null;
+            if ($month === null) {
+                return [null, false]; // a word, but not a month
+            }
+            return self::ymd(self::full_year($m['y']), $month, (int) $m['d']);
+        }
+        return null;
+    }
+
+    /** A year as printed: four digits as-is, two digits as 20YY (certificates are all this century). */
+    private static function full_year(string $y): int
+    {
+        return strlen($y) === 2 ? 2000 + (int) $y : (int) $y;
+    }
+
+    /** @return array{0:?string,1:bool} */
+    private static function ymd(int $y, int $month, int $day): array
+    {
+        if (!checkdate($month, $day, $y)) {
+            return [null, false];
+        }
+        return [sprintf('%04d-%02d-%02d', $y, $month, $day), true];
     }
 
     /** Parse a numeric string into a float, or null when non-numeric. */
