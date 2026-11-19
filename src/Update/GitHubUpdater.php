@@ -434,7 +434,7 @@ final class GitHubUpdater
     /**
      * Render a GitHub release body (Markdown) into safe HTML for the details modal.
      *
-     * CHANGELOG.md hard-wraps its bullets, so a line that is neither a bullet nor a
+     * Release notes hard-wrap their bullets, so a line that is neither a bullet nor a
      * heading continues the block above it. GitHub's auto-generated "What's Changed" /
      * "Full Changelog" footer only repeats the entry, so it is dropped.
      */
@@ -491,6 +491,7 @@ final class GitHubUpdater
     {
         $html = esc_html($text);
         $html = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $html) ?? $html;
+        $html = preg_replace('/(?<![*\w])\*(?=\S)([^*]+?)(?<=\S)\*(?![*\w])/', '<em>$1</em>', $html) ?? $html;
         $html = preg_replace('/`([^`]+)`/', '<code>$1</code>', $html) ?? $html;
         return preg_replace('#\bhttps?://[^\s<]*[^\s<.,;:)]#', '<a href="$0" target="_blank" rel="noopener noreferrer">$0</a>', $html) ?? $html;
     }
